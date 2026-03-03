@@ -1,46 +1,39 @@
 "use client"
 
-import { supabase } from "@/lib/supabaseClient";
-import { useEffect, useState } from "react"
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useEffect, useMemo, useState } from "react"
 
 export default function AuthPage() {
+    const supabase = useMemo(() => createSupabaseBrowserClient(), [])
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [user, setUser] = useState<any>(null);
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        const getUser = async () => {
-            const { data } = await supabase.auth.getUser();
-            setUser(data.user)
-        }
-    }, [])
+      supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null)
+      });
+
+      return () => sub.subscription.unsubscribe();
+    }, [supabase])
 
     const signUp = async () => {
         const { error } = await supabase.auth.signUp({ email, password })
 
-        if(error) setMessage(error.message);
-        else setMessage('Signed Up successfully');
+        setMessage(error ? error.message : 'Signed Up successfully!')
     }
 
     const signIn = async () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-        if (error) setMessage(error.message);
-        else {
-            setMessage('Signed In successfully!')
-
-            const { data } = await supabase.auth.getUser();
-
-            setUser(data.user)
-        }
+        setMessage(error ? error.message : 'Signed In successfully!')
     }
 
     const signOut = async () => {
         await supabase.auth.signOut()
-
-        setUser(null)
-
         setMessage('Signed Out')
     }
 
@@ -77,11 +70,9 @@ export default function AuthPage() {
     
           {message && <p className="text-sm">{message}</p>}
     
-          {user && (
-            <pre className="bg-slate-100 p-4 text-xs">
-              {JSON.stringify(user, null, 2)}
-            </pre>
-          )}
+          <p className="text-sm text-slate-600">
+            Current user: {user ? user.email : "none"}
+          </p>
         </main>
     )
 }
