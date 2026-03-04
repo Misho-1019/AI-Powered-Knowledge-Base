@@ -1,3 +1,4 @@
+import { embedText } from "@/lib/ai/embeddings";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -105,13 +106,21 @@ export async function POST(request: Request) {
 
         const chunks = chunkText(text, 1500, 300)
 
-        const chunkRows = chunks.map((c, idx) => ({
-            document_id: documentId,
-            user_id,
-            chunk_index: idx,
-            text_chunk: c,
-            token_count: Math.max(1, Math.ceil(c.length / 4))
-        }))
+        const chunkRows = [];
+
+        for (let idx = 0; idx < chunks.length; idx++) {
+            const c = chunks[idx];
+            const embedding = await embedText(c);
+
+            chunkRows.push({
+                document_id: documentId,
+                user_id,
+                chunk_index: idx,
+                text_chunk: c,
+                embedding,
+                token_count: Math.max(1, Math.ceil(c.length / 4))
+            })
+        }
 
         const { error: insertChunksErr } = await supabase.from('document_chunks').insert(chunkRows);
 
