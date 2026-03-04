@@ -38,9 +38,9 @@ export default async function DocumentsPage() {
         <main className="p-6 space-y-4">
           <h1 className="text-2xl font-semibold">Documents</h1>
     
-          <div className="flex gap-3">
-            <Link className="underline" href="/ingest-test">
-              Ingest test
+          <div className="flex gap-4">
+            <Link className="underline" href="/documents/new">
+              + New Note
             </Link>
             <Link className="underline" href="/ask">
               Ask
