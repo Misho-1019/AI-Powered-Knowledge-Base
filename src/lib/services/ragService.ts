@@ -1,3 +1,4 @@
+import { TypedSupabaseClient } from "@/types/supabase";
 import { embedText } from "../ai/embeddings";
 import { chatComplete } from "../ai/llm";
 
@@ -7,7 +8,7 @@ export type RagMatch = {
     document_id: string;
     chunk_index: number;
     text_chunk: string;
-    similarity: number | null;
+    similarity: number;
 }
 
 export type RagResult =
@@ -43,7 +44,7 @@ function buildContext(matches: RagMatch[]) {
 }
 
 export async function runRag(params: {
-    supabase: any,
+    supabase: TypedSupabaseClient,
     userId: string;
     query: string;
     k?: number;
