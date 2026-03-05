@@ -1,15 +1,11 @@
 import { TypedSupabaseClient } from "@/types/supabase";
 import { embedText } from "../ai/embeddings";
 import { chatComplete } from "../ai/llm";
+import { Database } from "@/types/database";
 
+type MatchChunksReturn = Database['public']['Functions']['match_chunks']['Returns']
 
-export type RagMatch = {
-    id: string,
-    document_id: string;
-    chunk_index: number;
-    text_chunk: string;
-    similarity: number;
-}
+export type RagMatch = MatchChunksReturn[number]
 
 export type RagResult =
     | {
