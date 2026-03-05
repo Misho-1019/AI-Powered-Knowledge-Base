@@ -60,6 +60,26 @@ export async function POST(request: Request) {
             })
         }
 
+        const topSimilarity = Number(safeMatches[0]?.similarity ?? 0);
+
+        const MIN_SIMILARITY = 0.35;
+
+        if (!Number.isFinite(topSimilarity) || topSimilarity < MIN_SIMILARITY) {
+            return NextResponse.json({
+                ok: true,
+                answer:
+                    "I couldn’t find enough evidence in your documents to answer that confidently. " +
+                    "Try rephrasing your question or add more notes about that topic.",
+                sources: safeMatches.slice(0, 3).map((m: any) => ({
+                    document_id: m.document_id,
+                    chunk_index: m.chunk_index,
+                    similarity: m.similarity,
+                    text_chunk: m.text_chunk,
+                })),
+                note: `Top similarity (${topSimilarity.toFixed(3)}) below threshold (${MIN_SIMILARITY}).`
+            })
+        }
+
         const context = buildContent(safeMatches);
 
         const system = [
