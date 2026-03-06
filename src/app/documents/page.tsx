@@ -1,3 +1,4 @@
+import ProcessDocButton from "@/components/ProcessDocButton";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
@@ -60,6 +61,11 @@ export default async function DocumentsPage() {
                   <div className="text-sm text-slate-600">
                     Status: {doc.status} • Created: {new Date(doc.created_at).toLocaleString()}
                   </div>
+                  {doc.status !== 'PROCESSED' && (
+                    <div className="mt-2">
+                      <ProcessDocButton documentId={doc.id} />
+                    </div>
+                  )}
                   <Link className="underline text-sm" href={`/documents/${doc.id}`}>
                     Open
                   </Link>
