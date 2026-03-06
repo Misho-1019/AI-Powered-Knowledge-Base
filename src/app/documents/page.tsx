@@ -42,6 +42,9 @@ export default async function DocumentsPage() {
             <Link className="underline" href="/documents/new">
               + New Note
             </Link>
+            <Link className="underline" href="/documents/upload">
+              Upload File
+            </Link>
             <Link className="underline" href="/ask">
               Ask
             </Link>
