@@ -1,3 +1,4 @@
+import ProcessButton from "@/components/ProcessButton";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
@@ -74,6 +75,8 @@ export default async function DocumentDetailPage({ params, } : { params: Promise
               <p className="text-sm text-slate-600">Storage: {doc.storage_path}</p>
             )}
           </div>
+
+          <ProcessButton documentId={doc.id} />
     
           <details className="border rounded p-3">
             <summary className="cursor-pointer font-medium">Metadata (debug)</summary>
