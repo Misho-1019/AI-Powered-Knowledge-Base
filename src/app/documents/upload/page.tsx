@@ -81,7 +81,25 @@ export default function UploadDocumentPage() {
       <input
         type="file"
         accept=".pdf,.md,.txt"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        onChange={(e) => {
+          const f = e.target.files?.[0] ?? null;
+
+          if (!f) {
+            setFile(null)
+            return;
+          }
+
+          const MAX_BYTES = 5 * 1024 * 1024;
+
+          if (f.size > MAX_BYTES) {
+            setMessage(`File too large. Max size is 5MB for this demo.`)
+            setFile(null);
+            return;
+          }
+
+          setMessage('')
+          setFile(f)
+        }}
       />
 
       <button
