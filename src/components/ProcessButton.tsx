@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/Button";
 
 export default function ProcessButton({ documentId }: { documentId: string }) {
   const [loading, setLoading] = useState(false);
@@ -29,14 +30,10 @@ export default function ProcessButton({ documentId }: { documentId: string }) {
 
   return (
     <div className="space-y-2">
-      <button
-        onClick={run}
-        disabled={loading}
-        className="bg-blue-600 text-white px-3 py-1 disabled:opacity-50"
-      >
-        {loading ? "Processing..." : "Process file"}
-      </button>
-      {msg && <p className="text-sm">{msg}</p>}
+      <Button onClick={run} isLoading={loading}>
+        Process file
+      </Button>
+      {msg && <p className="text-sm text-(--muted)">{msg}</p>}
     </div>
   );
 }
