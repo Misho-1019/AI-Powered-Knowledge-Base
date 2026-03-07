@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type DocOption = { id: string, title: string, status: string };
 
 export default function AskPage() {
   const [query, setQuery] = useState("");
@@ -9,17 +11,35 @@ export default function AskPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [docs, setDocs] = useState<DocOption[]>([])
+  const [docId, setDocId] = useState<string>('')
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch('/api/documents/list', { credentials: 'include' });
+
+      const data = await res.json();
+      
+      if (res.ok && data?.ok) {
+        setDocs(data.documents ?? [])
+      }
+    })();
+  }, [])
+
   const runAsk = async () => {
     setLoading(true);
     setError("");
     setAnswer("");
     setSources([]);
 
+    const payload: any = { query, k: 5 };
+    if (docId) payload.documentId = docId;
+
     const res = await fetch("/api/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ query, k: 5 }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
@@ -37,6 +57,22 @@ export default function AskPage() {
   return (
     <main className="p-6 space-y-4 max-w-3xl">
       <h1 className="text-2xl font-semibold">Ask</h1>
+
+      <div className="space-y-2">
+        <label className="text-sm text-slate-600">Search scope</label>
+        <select
+          className="border p-2 w-full"
+          value={docId}
+          onChange={(e) => setDocId(e.target.value)}
+        >
+          <option value="">All documents</option>
+          {docs.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.title} {d.status !== "PROCESSED" ? `(${d.status})` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="space-y-2">
         <input
