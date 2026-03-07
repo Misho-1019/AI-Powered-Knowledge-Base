@@ -1,4 +1,5 @@
 import ProcessDocButton from "@/components/ProcessDocButton";
+import Card from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
@@ -36,7 +37,7 @@ export default async function DocumentsPage() {
     }
 
     return (
-        <main className="p-6 space-y-4">
+        <Card>
           <h1 className="text-2xl font-semibold">Documents</h1>
     
           <div className="flex gap-4">
@@ -73,6 +74,6 @@ export default async function DocumentsPage() {
               ))}
             </ul>
           )}
-        </main>
+        </Card>
     )
 }
