@@ -38,43 +38,112 @@ export default async function DocumentsPage() {
     }
 
     return (
-        <Card>
-          <h1 className="text-2xl font-semibold">Documents</h1>
-    
-          <div className="flex gap-4">
-            <Link className="underline" href="/documents/new">
-              + New Note
-            </Link>
-            <Link className="underline" href="/documents/upload">
-              Upload File
-            </Link>
-            <Link className="underline" href="/ask">
-              Ask
-            </Link>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-lg font-semibold">Documents</h1>
+            <p className="text-sm text-[var(--muted)]">
+              Manage your knowledge sources and processing status.
+            </p>
           </div>
     
-          {(!documents || documents.length === 0) ? (
-            <p className="text-slate-600">No documents yet. Add one via /ingest-test.</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link href="/documents/new">
+              <span className="inline-block">
+                <span className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 transition">
+                  + New Note
+                </span>
+              </span>
+            </Link>
+    
+            <Link href="/documents/upload">
+              <span className="inline-block">
+                <span className="rounded-lg bg-gradient-to-r from-[var(--brand-1)] via-[var(--brand-2)] to-[var(--brand-3)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:brightness-[1.02] transition">
+                  Upload File
+                </span>
+              </span>
+            </Link>
+          </div>
+        </div>
+    
+        {/* List Card */}
+        <Card className="p-0 overflow-hidden">
+          <div className="border-b border-[var(--border)] px-6 py-4 bg-white">
+            <div className="text-sm font-semibold">Your documents</div>
+            <div className="text-xs text-[var(--muted)]">
+              Click a document to view details and chunks.
+            </div>
+          </div>
+    
+          {!documents || documents.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <div className="text-sm font-semibold">No documents yet</div>
+              <div className="mt-1 text-sm text-[var(--muted)]">
+                Start by creating a note or uploading a file.
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <Link href="/documents/new">
+                  <span className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 transition">
+                    Create note
+                  </span>
+                </Link>
+                <Link href="/documents/upload">
+                  <span className="rounded-lg bg-gradient-to-r from-[var(--brand-1)] via-[var(--brand-2)] to-[var(--brand-3)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:brightness-[1.02] transition">
+                    Upload document
+                  </span>
+                </Link>
+              </div>
+            </div>
           ) : (
-            <ul className="space-y-2">
+            <div className="divide-y divide-[var(--border)]">
               {documents.map((doc) => (
-                <li key={doc.id} className="border rounded p-3">
-                  <div className="font-medium">{doc.title}</div>
-                  <div className="text-sm text-slate-600">
-                    Status: <Badge status={doc.status}/> • Created: {new Date(doc.created_at).toLocaleString()}
-                  </div>
-                  {doc.status !== 'PROCESSED' && (
-                    <div className="mt-2">
-                      <ProcessDocButton documentId={doc.id} />
+                <div
+                  key={doc.id}
+                  className="px-6 py-4 hover:bg-slate-50 transition"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {/* Left side */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/documents/${doc.id}`}
+                          className="truncate text-sm font-semibold hover:underline"
+                        >
+                          {doc.title}
+                        </Link>
+                        <Badge status={doc.status} />
+                      </div>
+    
+                      <div className="mt-1 text-xs text-[var(--muted)]">
+                        Created{" "}
+                        {new Date(doc.created_at).toLocaleDateString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "2-digit",
+                        })}
+                      </div>
                     </div>
-                  )}
-                  <Link className="underline text-sm" href={`/documents/${doc.id}`}>
-                    Open
-                  </Link>
-                </li>
+    
+                    {/* Right side */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {doc.status !== "PROCESSED" && (
+                        <ProcessDocButton documentId={doc.id} />
+                      )}
+    
+                      <Link
+                        href={`/documents/${doc.id}`}
+                        className="text-sm font-medium text-[var(--brand-2)] hover:underline"
+                      >
+                        Open →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </Card>
-    )
+      </div>
+    );
 }
