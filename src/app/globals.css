@@ -1,6 +1,20 @@
 @import "tailwindcss";
 
 :root {
+  /* neutrals */
+  --bg: #f8fafc;            /* slate-50 */
+  --card: #ffffff;
+  --border: #e2e8f0;        /* slate-200 */
+  --text: #0f172a;          /* slate-900 */
+  --muted: #475569;         /* slate-600 */
+
+  /* iridescent brand gradient (controlled) */
+  --brand-1: #4f46e5;       /* indigo-600 */
+  --brand-2: #2563eb;       /* blue-600 */
+  --brand-3: #06b6d4;       /* cyan-500 */
+}
+
+:root {
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -19,8 +33,11 @@
   }
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
