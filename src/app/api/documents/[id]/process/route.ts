@@ -1,7 +1,15 @@
 import { embedText } from "@/lib/ai/embeddings";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
-import * as pdfParse from "pdf-parse";
+
+import { writeFile, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 function chunkText(text: string, chunkSize = 1500, overlap = 300) {
     const clean = (text ?? '').trim();
@@ -80,10 +88,21 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         const ext = getExt(doc.storage_path);
         let text = '';
 
-        if (ext === 'pdf') {
-            const parsed = await (pdfParse as any)(buffer);
-
-            text = parsed.text ?? '';
+        if (ext === "pdf") {
+            const tmpPath = join(tmpdir(), `${randomUUID()}.pdf`);
+            await writeFile(tmpPath, buffer);
+          
+            try {
+              const { stdout } = await execFileAsync(
+                process.execPath,
+                [join(process.cwd(), "scripts", "extract-pdf-text.mjs"), tmpPath],
+                { maxBuffer: 10 * 1024 * 1024 } // 10MB stdout buffer
+              );
+          
+              text = (stdout ?? "").toString();
+            } finally {
+              await unlink(tmpPath).catch(() => {});
+            }
         } else if (ext === 'txt' || ext === 'md') {
             text = buffer.toString('utf-8');
         } else {
