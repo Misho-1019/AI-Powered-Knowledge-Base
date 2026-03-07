@@ -1,4 +1,5 @@
 import ProcessDocButton from "@/components/ProcessDocButton";
+import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
@@ -60,7 +61,7 @@ export default async function DocumentsPage() {
                 <li key={doc.id} className="border rounded p-3">
                   <div className="font-medium">{doc.title}</div>
                   <div className="text-sm text-slate-600">
-                    Status: {doc.status} • Created: {new Date(doc.created_at).toLocaleString()}
+                    Status: <Badge status={doc.status}/> • Created: {new Date(doc.created_at).toLocaleString()}
                   </div>
                   {doc.status !== 'PROCESSED' && (
                     <div className="mt-2">
