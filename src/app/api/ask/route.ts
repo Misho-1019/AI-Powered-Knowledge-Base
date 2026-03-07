@@ -8,6 +8,7 @@ export async function POST(request: Request) {
         const body = await request.json().catch(() => null)
         const query = body?.query;
         const k = typeof body?.k === 'number' ? body.k : 5;
+        const documentId = typeof body?.documentId === 'string' ? body.documentId : undefined;
 
         if (!query || typeof query !== 'string') {
             return NextResponse.json({ error: 'Missing or invalid query' }, { status: 400 })
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
             query,
             k,
             minSimilarity: 0.35,
+            documentId,
         })
 
         if (!result.ok) {

@@ -45,6 +45,7 @@ export async function runRag(params: {
     query: string;
     k?: number;
     minSimilarity?: number;
+    documentId?: string;
 }): Promise<RagResult> {
     const { supabase, userId, query } = params;
     const k = typeof params?.k === 'number' ? params.k : 5;
@@ -56,6 +57,7 @@ export async function runRag(params: {
         query_embedding: queryEmbedding,
         match_count: k,
         user_id_input: userId,
+        document_id_input: params.documentId ?? null,
     })
 
     if (matchErr) return { ok: false, error: matchErr.message };
