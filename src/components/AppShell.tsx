@@ -1,8 +1,12 @@
-"use client"
+/* eslint-disable react-hooks/set-state-in-effect */
+"use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import Button from "@/components/ui/Button";
 
 function getPageMeta(pathname: string) {
   if (pathname === "/") return { title: "Home", subtitle: "Your knowledge base at a glance." };
@@ -20,22 +24,68 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { title, subtitle } = getPageMeta(pathname);
 
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? "");
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? "");
+    });
+
+    return () => sub.subscription.unsubscribe();
+  }, [supabase]);
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  // close sidebar on navigation changes (mobile)
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
+
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      {/* Subtle “aurora” accent (very light, optional but nice) */}
+      {/* Subtle “aurora” accent */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-32 right-[-120px] h-[420px] w-[420px] rounded-full blur-3xl opacity-[0.10]"
-             style={{
-               background:
-                 "radial-gradient(circle at 30% 30%, var(--brand-3), transparent 60%), radial-gradient(circle at 70% 70%, var(--brand-1), transparent 55%)",
-             }}
+        <div
+          className="absolute -top-32 right-[-120px] h-[420px] w-[420px] rounded-full blur-3xl opacity-[0.10]"
+          style={{
+            background:
+              "radial-gradient(circle at 30% 30%, var(--brand-3), transparent 60%), radial-gradient(circle at 70% 70%, var(--brand-1), transparent 55%)",
+          }}
         />
       </div>
 
+      {/* Mobile sidebar overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          aria-hidden={!isSidebarOpen}
+        >
+          {/* backdrop */}
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="absolute inset-0 bg-black/30"
+            aria-label="Close menu"
+          />
+
+          {/* panel */}
+          <aside className="absolute left-0 top-0 bottom-0 w-72 overflow-auto border-r border-[var(--border)] bg-[var(--card)] p-4 shadow-xl">
+            <MobileSidebarContent onClose={() => setIsSidebarOpen(false)} />
+          </aside>
+        </div>
+      )}
+
       <div className="mx-auto max-w-6xl px-4 py-6">
         <div className="grid gap-6 md:grid-cols-[240px_1fr]">
-          {/* Sidebar */}
-          <aside className="h-fit rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
+          {/* Desktop sidebar (hidden on small screens) */}
+          <aside className="hidden md:block h-fit rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
             <div className="mb-4">
               <div className="text-sm font-semibold">AI Knowledge Base</div>
               <div className="text-xs text-[var(--muted)]">Light UI redesign</div>
@@ -54,17 +104,40 @@ export default function AppShell({ children }: { children: ReactNode }) {
           {/* Main */}
           <main className="space-y-6">
             {/* Topbar */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {/* Mobile menu button */}
+                <button
+                  className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-white"
+                  onClick={() => setIsSidebarOpen(true)}
+                  aria-label="Open menu"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+
                 <div>
                   <div className="text-sm font-semibold">{title}</div>
                   <div className="text-xs text-[var(--muted)]">{subtitle}</div>
                 </div>
+              </div>
 
-                {/* placeholder for later: search / user menu */}
-                <div className="hidden sm:block text-xs text-[var(--muted)]">
-                  v0 UI shell
-                </div>
+              <div className="flex items-center gap-2">
+                {userEmail ? (
+                  <>
+                    <div className="hidden sm:block text-xs text-[var(--muted)]">
+                      {userEmail}
+                    </div>
+                    <Button variant="ghost" onClick={signOut}>
+                      Sign out
+                    </Button>
+                  </>
+                ) : (
+                  <Link href="/auth">
+                    <Button variant="secondary">Sign in</Button>
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -72,6 +145,38 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </main>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
+  return (
+    <div>
+      <div className="mb-4">
+        <div className="text-sm font-semibold">AI Knowledge Base</div>
+        <div className="text-xs text-[var(--muted)]">Light UI redesign</div>
+      </div>
+
+      <nav className="space-y-1">
+        <Link href="/" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
+          Home
+        </Link>
+        <Link href="/documents" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
+          Documents
+        </Link>
+        <Link href="/ask" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
+          Ask
+        </Link>
+        <Link href="/documents/upload" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
+          Upload
+        </Link>
+        <Link href="/documents/new" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
+          New Note
+        </Link>
+        <Link href="/auth" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
+          Auth
+        </Link>
+      </nav>
     </div>
   );
 }
