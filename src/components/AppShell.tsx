@@ -157,25 +157,14 @@ function MobileSidebarContent({ onClose }: { onClose?: () => void }) {
         <div className="text-xs text-[var(--muted)]">Light UI redesign</div>
       </div>
 
+      {/* inside MobileSidebarContent */}
       <nav className="space-y-1">
-        <Link href="/" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
-          Home
-        </Link>
-        <Link href="/documents" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
-          Documents
-        </Link>
-        <Link href="/ask" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
-          Ask
-        </Link>
-        <Link href="/documents/upload" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
-          Upload
-        </Link>
-        <Link href="/documents/new" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
-          New Note
-        </Link>
-        <Link href="/auth" onClick={onClose} className="block rounded-lg px-3 py-2 text-[var(--text)] hover:bg-slate-50">
-          Auth
-        </Link>
+        <NavItem href="/" ><span onClick={onClose}>Home</span></NavItem>
+        <NavItem href="/documents" ><span onClick={onClose}>Documents</span></NavItem>
+        <NavItem href="/ask" ><span onClick={onClose}>Ask</span></NavItem>
+        <NavItem href="/documents/upload" ><span onClick={onClose}>Upload</span></NavItem>
+        <NavItem href="/documents/new" ><span onClick={onClose}>New Note</span></NavItem>
+        <NavItem href="/auth" ><span onClick={onClose}>Auth</span></NavItem>
       </nav>
     </div>
   );
@@ -191,10 +180,12 @@ function NavItem({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link
       href={href}
+      aria-current={isActive ? "page" : undefined}
       className={`block rounded-lg px-3 py-2 text-sm font-medium transition
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[color:var(--brand-2)]/40
         ${
           isActive
-            ? "bg-slate-100 text-[var(--text)]"
+            ? "bg-slate-100 text-[var(--text)] shadow-sm ring-1 ring-[color:var(--brand-2)]/8"
             : "text-[var(--muted)] hover:bg-slate-50 hover:text-[var(--text)]"
         }
       `}

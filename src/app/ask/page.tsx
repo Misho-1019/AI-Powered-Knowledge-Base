@@ -2,6 +2,7 @@
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import EmptyState from "@/components/ui/EmptyState";
 import Input from "@/components/ui/Input";
 import NoticeCard from "@/components/ui/NoticeCard";
 import Select from "@/components/ui/Select";
@@ -154,9 +155,9 @@ export default function AskPage() {
               </div>
             </div>
   
-            <div className="px-6 py-6">
+            <div className="px-6 py-6" aria-busy={loading}>
               {loading ? (
-                <div className="space-y-3">
+                <div className="space-y-3" role="status" aria-live="polite">
                   <Skeleton className="h-4 w-2/3" />
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-5/6" />
@@ -167,7 +168,14 @@ export default function AskPage() {
                 <p className="whitespace-pre-wrap text-sm leading-6">{answer}</p>
               ) : (
                 <div className="text-sm text-[var(--muted)]">
-                  Ask a question to see an answer here.
+                  <EmptyState
+                    title="Ask a question"
+                    subtitle="Type a question on the left and press Ask to retrieve answers from your documents."
+                    ctaLabel="Read docs"
+                    ctaHref="/documents"
+                    icon={<span className="text-lg">❓</span>}
+                    className="py-8"
+                  />
                 </div>
               )}
             </div>
