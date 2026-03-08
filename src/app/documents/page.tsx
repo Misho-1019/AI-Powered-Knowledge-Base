@@ -80,19 +80,24 @@ export default async function DocumentsPage() {
     
           {!documents || documents.length === 0 ? (
             <div className="px-6 py-12 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+                <span className="text-lg">📄</span>
+              </div>
+            
               <div className="text-sm font-semibold">No documents yet</div>
               <div className="mt-1 text-sm text-[var(--muted)]">
-                Start by creating a note or uploading a file.
+                Upload a file or create a note to start building your knowledge base.
               </div>
+            
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                <Link href="/documents/new">
-                  <span className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 transition">
-                    Create note
-                  </span>
-                </Link>
                 <Link href="/documents/upload">
                   <span className="rounded-lg bg-gradient-to-r from-[var(--brand-1)] via-[var(--brand-2)] to-[var(--brand-3)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:brightness-[1.02] transition">
                     Upload document
+                  </span>
+                </Link>
+                <Link href="/documents/new">
+                  <span className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 transition">
+                    Create note
                   </span>
                 </Link>
               </div>
