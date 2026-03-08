@@ -2,6 +2,7 @@
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import NoticeCard from "@/components/ui/NoticeCard";
 import { useEffect, useState } from "react";
 
 type DocOption = { id: string, title: string, status: string };
@@ -137,9 +138,11 @@ export default function AskPage() {
   
             {/* Error */}
             {error ? (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {error}
-              </div>
+              <NoticeCard
+                title="Request failed"
+                description={error}
+                variant="error"
+              />
             ) : null}
           </div>
         </Card>

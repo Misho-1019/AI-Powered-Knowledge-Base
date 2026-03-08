@@ -2,6 +2,7 @@ import ProcessButton from "@/components/ProcessButton";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import NoticeCard from "@/components/ui/NoticeCard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
@@ -15,52 +16,70 @@ export default async function DocumentDetailPage({ params, } : { params: Promise
     const user = userData.user;
 
     if (!user) {
-        return (
-            <main className="p-6 space-y-3">
-              <Link className="underline" href="/documents">
-                ← Back
-              </Link>
-              <h1 className="text-2xl font-semibold">Document</h1>
-              <p className="text-slate-600">
-                You are not signed in. Go to{" "}
-                <Link className="underline" href="/auth">
-                  /auth
-                </Link>
-                .
-              </p>
-            </main>
-        )
+      return (
+        <div className="space-y-6">
+          <Link
+            href="/documents"
+            className="text-sm font-medium text-[var(--brand-2)] hover:underline"
+          >
+            ← Back to documents
+          </Link>
+    
+          <NoticeCard
+            title="Not signed in"
+            description="You need an account to view this document."
+            actionHref="/auth"
+            actionLabel="Go to auth →"
+          />
+        </div>
+      );
     }
 
     const { data: doc, error: docError } = await supabase.from('documents').select('id, title, status, created_at, updated_at, metadata, storage_path').eq('id', id).single();
 
     if (docError) {
-        return (
-            <main className="p-6 space-y-3">
-              <Link className="underline" href="/documents">
-                ← Back
-              </Link>
-              <h1 className="text-2xl font-semibold">Document</h1>
-              <p className="text-red-600">Error: {docError.message}</p>
-              <p className="text-slate-600 text-sm">
-                (If the ID is valid but you still can’t see it, that’s likely RLS doing its job.)
-              </p>
-            </main>
-        )
+      return (
+        <div className="space-y-6">
+          <Link
+            href="/documents"
+            className="text-sm font-medium text-[var(--brand-2)] hover:underline"
+          >
+            ← Back to documents
+          </Link>
+    
+          <NoticeCard
+            title="Could not load document"
+            description={docError.message}
+            variant="error"
+          >
+            <p className="text-xs text-[var(--muted)]">
+              If the ID is valid but you still can’t see it, that’s likely RLS doing
+              its job.
+            </p>
+          </NoticeCard>
+        </div>
+      );
     }
 
     const { data: chunks, error: chunksError } = await supabase.from('document_chunks').select('id, chunk_index, text_chunk, token_count, created_at').eq('document_id', id).order('chunk_index', { ascending: true });
 
     if (chunksError) {
-        return (
-            <main className="p-6 space-y-3">
-              <Link className="underline" href="/documents">
-                ← Back
-              </Link>
-              <h1 className="text-2xl font-semibold">{doc.title}</h1>
-              <p className="text-red-600">Error loading chunks: {chunksError.message}</p>
-            </main>
-        )
+      return (
+        <div className="space-y-6">
+          <Link
+            href="/documents"
+            className="text-sm font-medium text-[var(--brand-2)] hover:underline"
+          >
+            ← Back to documents
+          </Link>
+    
+          <NoticeCard
+            title="Could not load chunks"
+            description={chunksError.message}
+            variant="error"
+          />
+        </div>
+      );
     }
 
     return (
