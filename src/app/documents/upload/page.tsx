@@ -2,6 +2,9 @@
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useMemo, useState } from "react";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Link from "next/link";
 
 export default function UploadDocumentPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
@@ -75,48 +78,147 @@ export default function UploadDocumentPage() {
   };
 
   return (
-    <main className="p-6 space-y-4 max-w-xl">
-      <h1 className="text-2xl font-semibold">Upload Document</h1>
-
-      <input
-        type="file"
-        accept=".pdf,.md,.txt"
-        onChange={(e) => {
-          const f = e.target.files?.[0] ?? null;
-
-          if (!f) {
-            setFile(null)
-            return;
-          }
-
-          const MAX_BYTES = 5 * 1024 * 1024;
-
-          if (f.size > MAX_BYTES) {
-            setMessage(`File too large. Max size is 5MB for this demo.`)
-            setFile(null);
-            return;
-          }
-
-          setMessage('')
-          setFile(f)
-        }}
-      />
-
-      <button
-        onClick={upload}
-        disabled={uploading}
-        className="bg-blue-600 text-white px-4 py-2 disabled:opacity-50"
-      >
-        {uploading ? "Uploading..." : "Upload"}
-      </button>
-
-      {message && <p className="text-sm">{message}</p>}
-
-      {storagePath && (
-        <pre className="bg-slate-100 p-3 rounded text-xs overflow-auto">
-          storagePath: {storagePath}
-        </pre>
-      )}
-    </main>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-lg font-semibold">Upload document</h1>
+        <p className="text-sm text-[var(--muted)]">
+          Upload a file to store it in your knowledge base. After upload, process
+          it from the Documents page to extract text and generate embeddings.
+        </p>
+      </div>
+  
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        {/* Main upload card */}
+        <Card className="p-0 overflow-hidden">
+          <div className="border-b border-[var(--border)] bg-white px-6 py-4">
+            <div className="text-sm font-semibold">File</div>
+            <div className="text-xs text-[var(--muted)]">
+              Supported: PDF, Markdown, TXT (max 5MB for this demo).
+            </div>
+          </div>
+  
+          <div className="px-6 py-6 space-y-4">
+            <div className="rounded-xl border border-dashed border-[var(--border)] bg-white p-6 hover:bg-slate-50 transition">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold">Select a file</div>
+                <div className="text-sm text-[var(--muted)]">
+                  Choose a document to upload. We’ll create a document record
+                  automatically.
+                </div>
+              </div>
+  
+              <div className="mt-4">
+                <input
+                  type="file"
+                  accept=".pdf,.md,.txt"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+  
+                    if (!f) {
+                      setFile(null);
+                      return;
+                    }
+  
+                    const MAX_BYTES = 5 * 1024 * 1024;
+  
+                    if (f.size > MAX_BYTES) {
+                      setMessage(`File too large. Max size is 5MB for this demo.`);
+                      setFile(null);
+                      return;
+                    }
+  
+                    setMessage("");
+                    setFile(f);
+                  }}
+                  className="block w-full text-sm
+                    file:mr-4 file:rounded-lg file:border file:border-[var(--border)]
+                    file:bg-white file:px-3 file:py-2 file:text-sm file:font-medium
+                    hover:file:bg-slate-50"
+                />
+              </div>
+  
+              <div className="mt-3 text-xs text-[var(--muted)]">
+                {file ? (
+                  <span>
+                    Selected:{" "}
+                    <span className="font-medium text-[var(--text)]">
+                      {file.name}
+                    </span>{" "}
+                    ({Math.round(file.size / 1024)} KB)
+                  </span>
+                ) : (
+                  <span>No file selected yet.</span>
+                )}
+              </div>
+            </div>
+  
+            {/* Actions */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button
+                onClick={upload}
+                isLoading={uploading}
+                disabled={!file || uploading}
+              >
+                Upload
+              </Button>
+  
+              <Link
+                href="/documents"
+                className="text-sm font-medium text-[var(--brand-2)] hover:underline"
+              >
+                Back to documents
+              </Link>
+            </div>
+  
+            {/* Status message */}
+            {message ? (
+              <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-sm">
+                <div className="font-medium">Status</div>
+                <div className="text-[var(--muted)]">{message}</div>
+              </div>
+            ) : null}
+  
+            {/* Storage path (debug-ish, but presented nicely) */}
+            {storagePath ? (
+              <div className="rounded-xl border border-[var(--border)] bg-slate-50 p-3">
+                <div className="text-xs font-semibold text-slate-700">
+                  Storage path
+                </div>
+                <div className="mt-1 text-xs text-slate-700 break-all">
+                  {storagePath}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </Card>
+  
+        {/* Right-side guidance */}
+        <Card className="space-y-3">
+          <div>
+            <div className="text-sm font-semibold">What happens next?</div>
+            <div className="text-sm text-[var(--muted)]">
+              Uploading stores the file and creates a document record. Processing
+              extracts text, chunks it, and generates embeddings for search.
+            </div>
+          </div>
+  
+          <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+            <div className="text-sm font-semibold">Recommended flow</div>
+            <ol className="mt-2 list-decimal pl-5 text-sm text-[var(--muted)] space-y-1">
+              <li>Upload the file</li>
+              <li>Open it from Documents</li>
+              <li>Click Process</li>
+              <li>Go to Ask and query it</li>
+            </ol>
+          </div>
+  
+          <div className="text-xs text-[var(--muted)]">
+            Tip: If a PDF is scanned (images), extraction may fail or be empty.
+            Text-based PDFs work best.
+          </div>
+        </Card>
+      </div>
+    </div>
   );
 }

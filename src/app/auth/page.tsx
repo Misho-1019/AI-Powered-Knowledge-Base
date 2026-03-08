@@ -1,5 +1,7 @@
 "use client"
 
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useEffect, useMemo, useState } from "react"
 
@@ -38,41 +40,83 @@ export default function AuthPage() {
     }
 
     return (
-        <main className="p-6 space-y-4 max-w-md">
-          <h1 className="text-2xl font-semibold">Auth</h1>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="space-y-1">
+          <h1 className="text-lg font-semibold">Auth</h1>
+          <p className="text-sm text-[var(--muted)]">
+            Sign up or sign in to manage documents and ask questions.
+          </p>
+        </div>
     
-          <input
-            className="border p-2 w-full"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-    
-          <input
-            className="border p-2 w-full"
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-    
-          <div className="flex gap-2">
-            <button onClick={signUp} className="bg-blue-600 text-white px-3 py-1">
-              Sign Up
-            </button>
-            <button onClick={signIn} className="bg-green-600 text-white px-3 py-1">
-              Sign In
-            </button>
-            <button onClick={signOut} className="bg-red-600 text-white px-3 py-1">
-              Sign Out
-            </button>
+        <Card className="p-0 overflow-hidden">
+          <div className="border-b border-[var(--border)] bg-white px-6 py-4">
+            <div className="text-sm font-semibold">Account</div>
+            <div className="text-xs text-[var(--muted)]">
+              Credentials are handled by Supabase Auth.
+            </div>
           </div>
     
-          {message && <p className="text-sm">{message}</p>}
+          <div className="px-6 py-6 space-y-4">
+            {/* Inputs */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <input
+                className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-2)]/30"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
     
-          <p className="text-sm text-slate-600">
-            Current user: {user ? user.email : "none"}
-          </p>
-        </main>
-    )
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <input
+                className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm
+                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-2)]/30"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+              <p className="text-xs text-[var(--muted)]">
+                For demo use, keep it simple — you can always reset later.
+              </p>
+            </div>
+    
+            {/* Actions */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button onClick={signUp} disabled={!email || !password}>
+                Sign Up
+              </Button>
+              <Button onClick={signIn} variant="secondary" disabled={!email || !password}>
+                Sign In
+              </Button>
+              <Button onClick={signOut} variant="ghost">
+                Sign Out
+              </Button>
+            </div>
+    
+            {/* Message */}
+            {message ? (
+              <div className="rounded-xl border border-[var(--border)] bg-slate-50 p-3 text-sm">
+                <div className="font-medium">Status</div>
+                <div className="text-[var(--muted)]">{message}</div>
+              </div>
+            ) : null}
+    
+            {/* Current user */}
+            <div className="rounded-xl border border-[var(--border)] bg-white p-4">
+              <div className="text-xs font-semibold text-slate-700">Current user</div>
+              <div className="mt-1 text-sm text-[var(--muted)]">
+                {user ? user.email : "none"}
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
 }
