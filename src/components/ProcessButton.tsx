@@ -6,10 +6,12 @@ import Button from "@/components/ui/Button";
 export default function ProcessButton({ documentId }: { documentId: string }) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [isError, setIsError] = useState(false);
 
   const run = async () => {
     setLoading(true);
     setMsg("");
+    setIsError(false);
 
     const res = await fetch(`/api/documents/${documentId}/process`, {
       method: "POST",
@@ -20,6 +22,7 @@ export default function ProcessButton({ documentId }: { documentId: string }) {
     setLoading(false);
 
     if (!res.ok) {
+      setIsError(true);
       setMsg(data.error || "Failed");
       return;
     }
@@ -33,7 +36,12 @@ export default function ProcessButton({ documentId }: { documentId: string }) {
       <Button onClick={run} isLoading={loading}>
         Process file
       </Button>
-      {msg && <p className="text-sm text-(--muted)">{msg}</p>}
+
+      {msg ? (
+        <p className={`text-sm ${isError ? "text-rose-700" : "text-[var(--muted)]"}`}>
+          {msg}
+        </p>
+      ) : null}
     </div>
   );
 }
