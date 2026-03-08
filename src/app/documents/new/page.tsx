@@ -1,5 +1,7 @@
 "use client"
 
+import Input from "@/components/ui/Input";
+import Textarea from "@/components/ui/Textarea";
 import { useRouter } from "next/navigation"
 import { useState } from "react";
 
@@ -39,18 +41,17 @@ export default function NewDocumentPage() {
         <main className="p-6 space-y-4 max-w-2xl">
           <h1 className="text-2xl font-semibold">New Note</h1>
     
-          <input
-            className="border p-2 w-full"
+          <Input
             placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
     
-          <textarea
-            className="border p-2 w-full h-64"
-            placeholder="Paste your text here..."
+          <Textarea
+            placeholder="Paste or write your note..."
             value={text}
             onChange={(e) => setText(e.target.value)}
+            rows={10}
           />
     
           <button

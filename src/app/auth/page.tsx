@@ -2,6 +2,7 @@
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useEffect, useMemo, useState } from "react"
 
@@ -61,9 +62,7 @@ export default function AuthPage() {
             {/* Inputs */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Email</label>
-              <input
-                className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-2)]/30"
+              <Input
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -73,9 +72,7 @@ export default function AuthPage() {
     
             <div className="space-y-2">
               <label className="text-sm font-medium">Password</label>
-              <input
-                className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-2)]/30"
+              <Input
                 type="password"
                 placeholder="Password"
                 value={password}

@@ -2,7 +2,9 @@
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
 import NoticeCard from "@/components/ui/NoticeCard";
+import Select from "@/components/ui/Select";
 import { useEffect, useState } from "react";
 
 type DocOption = { id: string, title: string, status: string };
@@ -81,19 +83,14 @@ export default function AskPage() {
             {/* Scope */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Search scope</label>
-              <select
-                className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-2)]/30"
-                value={docId}
-                onChange={(e) => setDocId(e.target.value)}
-              >
+              <Select value={docId} onChange={(e) => setDocId(e.target.value)}>
                 <option value="">All documents</option>
                 {docs.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.title} {d.status !== "PROCESSED" ? `(${d.status})` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
   
               <p className="text-xs text-[var(--muted)]">
                 Tip: pick a single processed document to reduce noise.
@@ -103,9 +100,7 @@ export default function AskPage() {
             {/* Input */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Your question</label>
-              <input
-                className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm
-                           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-2)]/30"
+              <Input
                 placeholder="Ask something about your documents..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
