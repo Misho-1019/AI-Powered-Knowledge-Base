@@ -115,6 +115,13 @@ export default async function DocumentsPage() {
                           {doc.title}
                         </Link>
                         <Badge status={doc.status} />
+
+                        {doc.status === "PROCESSING" && (
+                          <span className="ml-1 inline-flex items-center gap-1 text-xs text-[var(--muted)]">
+                            <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping" />
+                            processing
+                          </span>
+                        )}
                       </div>
     
                       <div className="mt-1 text-xs text-[var(--muted)]">

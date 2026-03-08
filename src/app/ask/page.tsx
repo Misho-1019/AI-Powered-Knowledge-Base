@@ -5,6 +5,7 @@ import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
 import NoticeCard from "@/components/ui/NoticeCard";
 import Select from "@/components/ui/Select";
+import Skeleton from "@/components/ui/Skeleton";
 import { useEffect, useState } from "react";
 
 type DocOption = { id: string, title: string, status: string };
@@ -156,12 +157,11 @@ export default function AskPage() {
             <div className="px-6 py-6">
               {loading ? (
                 <div className="space-y-3">
-                  <div className="h-4 w-2/3 rounded bg-slate-100" />
-                  <div className="h-4 w-full rounded bg-slate-100" />
-                  <div className="h-4 w-5/6 rounded bg-slate-100" />
-                  <div className="mt-3 text-xs text-[var(--muted)]">
-                    Thinking…
-                  </div>
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <div className="pt-2 text-xs text-[var(--muted)]">Thinking…</div>
                 </div>
               ) : answer ? (
                 <p className="whitespace-pre-wrap text-sm leading-6">{answer}</p>
