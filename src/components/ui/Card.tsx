@@ -14,6 +14,7 @@ export default function Card({ children, className = "" }: CardProps) {
         rounded-xl
         shadow-sm
         p-6
+        transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md motion-safe:transform-gpu
         ${className}
       `}
     >

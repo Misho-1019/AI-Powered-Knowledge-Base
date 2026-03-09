@@ -3,7 +3,7 @@
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
-import Input from "@/components/ui/Input";
+// removed single-line Input import; use native textarea below
 import NoticeCard from "@/components/ui/NoticeCard";
 import Select from "@/components/ui/Select";
 import Skeleton from "@/components/ui/Skeleton";
@@ -21,6 +21,8 @@ export default function AskPage() {
   const [docs, setDocs] = useState<DocOption[]>([])
   const [docId, setDocId] = useState<string>('')
 
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     (async () => {
       const res = await fetch('/api/documents/list', { credentials: 'include' });
@@ -34,6 +36,9 @@ export default function AskPage() {
   }, [])
 
   const runAsk = async () => {
+    // guard: don't send empty queries
+    if (!query.trim()) return;
+
     setLoading(true);
     setError("");
     setAnswer("");
@@ -42,24 +47,50 @@ export default function AskPage() {
     const payload: any = { query, k: 5 };
     if (docId) payload.documentId = docId;
 
-    const res = await fetch("/api/ask", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
+      setLoading(false);
 
-    if (!res.ok) {
-      setError(data.error || "Request failed");
-      return;
+      if (!res.ok) {
+        setError(data.error || "Request failed");
+        return;
+      }
+
+      setAnswer(data.answer ?? "");
+      setSources(data.sources ?? []);
+    } catch (err: any) {
+      setLoading(false);
+      setError(err?.message || "Request failed");
     }
-
-    setAnswer(data.answer ?? "");
-    setSources(data.sources ?? []);
   };
+
+  // For textarea: Enter = submit, Shift+Enter = newline
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault(); // prevent newline
+      if (!loading && query.trim()) {
+        runAsk();
+      }
+    }
+    // otherwise (Shift+Enter) allow default newline behavior
+  };
+
+  // Auto-focus the Ask textarea on mount
+  useEffect(() => {
+    const id = "ask-input";
+    const t = setTimeout(() => {
+      const el = document.getElementById(id) as HTMLTextAreaElement | null;
+      if (el) el.focus();
+    }, 50);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -99,14 +130,23 @@ export default function AskPage() {
               </p>
             </div>
   
-            {/* Input */}
+            {/* Multi-line Input (textarea) */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Your question</label>
-              <Input
-                placeholder="Ask something about your documents..."
+
+              <textarea
+                id="ask-input"
+                placeholder="Ask something about your documents... (Shift+Enter for newline, Enter to submit)"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                aria-label="Ask a question"
+                rows={4}
+                className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm
+                  transition-shadow duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-2)]/30"
+                disabled={loading}
               />
+              <p className="text-xs text-[var(--muted)]">Press Enter to submit — Shift+Enter adds a new line.</p>
             </div>
   
             {/* Actions */}
@@ -154,6 +194,42 @@ export default function AskPage() {
                 The model should answer using retrieved sources.
               </div>
             </div>
+
+            {/* Copy button area (shows only when there's an answer) */}
+            <div className="flex items-center gap-2">
+              {/* shows nothing until there's an answer */}
+              {answer ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    className="text-xs px-3 py-1"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(answer);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      } catch {
+                        // fallback: try execCommand (very old browsers)
+                        const ta = document.createElement("textarea");
+                        ta.value = answer;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+                        ta.remove();
+                      }
+                    }}
+                    aria-label="Copy answer to clipboard"
+                  >
+                    Copy
+                  </Button>
+        
+                  {/* small visual confirmation */}
+                  <div className="text-xs text-[var(--muted)]" aria-live="polite">
+                    {copied ? "Copied!" : null}
+                  </div>
+                </>
+              ) : null}
+            </div>
   
             <div className="px-6 py-6" aria-busy={loading}>
               {loading ? (
@@ -165,7 +241,7 @@ export default function AskPage() {
                   <div className="pt-2 text-xs text-[var(--muted)]">Thinking…</div>
                 </div>
               ) : answer ? (
-                <p className="whitespace-pre-wrap text-sm leading-6">{answer}</p>
+                <p className="whitespace-pre-wrap text-sm leading-6 animate-[fadeIn_0.25s_ease-out]">{answer}</p>
               ) : (
                 <div className="text-sm text-[var(--muted)]">
                   <EmptyState
