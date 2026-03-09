@@ -1,5 +1,6 @@
 import ProcessDocButton from "@/components/ProcessDocButton";
 import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import NoticeCard from "@/components/ui/NoticeCard";
@@ -52,20 +53,16 @@ export default async function DocumentsPage() {
           </div>
     
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/documents/new">
-              <span className="inline-block">
-                <span className="rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 transition">
-                  + New Note
-                </span>
-              </span>
+            <Link href="/documents/new" className="inline-block">
+              <Button variant="secondary" className="w-full sm:w-auto">
+                + New Note
+              </Button>
             </Link>
-    
-            <Link href="/documents/upload">
-              <span className="inline-block">
-                <span className="rounded-lg bg-gradient-to-r from-[var(--brand-1)] via-[var(--brand-2)] to-[var(--brand-3)] px-3 py-2 text-sm font-medium text-white shadow-sm hover:brightness-[1.02] transition">
-                  Upload File
-                </span>
-              </span>
+          
+            <Link href="/documents/upload" className="inline-block">
+              <Button variant="primary" className="w-full sm:w-auto">
+                Upload File
+              </Button>
             </Link>
           </div>
         </div>
@@ -88,34 +85,49 @@ export default async function DocumentsPage() {
               icon={<span className="text-lg">📄</span>}
             />
           ) : (
-            <div className="divide-y divide-[var(--border)]">
+            <div className="divide-y divide-[var(--border)] animate-[fadeUp_0.25s_ease-out]">
               {documents.map((doc) => (
-                <div
+                <Link
                   key={doc.id}
-                  className="px-6 py-4 hover:bg-slate-50 transition"
+                  href={`/documents/${doc.id}`}
+                  className="group block px-6 py-4 rounded-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm hover:bg-gradient-to-r hover:from-slate-50 hover:to-white hover:border-slate-200 motion-safe:transform-gpu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-2)]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    {/* Left side */}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/documents/${doc.id}`}
-                          className="truncate text-sm font-semibold hover:underline"
-                        >
-                          {doc.title}
-                        </Link>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="truncate text-[15px] font-semibold text-[var(--text)]">{doc.title}</span>
+              
                         <Badge status={doc.status} />
-
+              
                         {doc.status === "PROCESSING" && (
-                          <span className="ml-1 inline-flex items-center gap-1 text-xs text-[var(--muted)]">
-                            <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping" />
-                            processing
+                          <span className="ml-2 inline-flex items-center gap-2 text-xs text-[var(--muted)]">
+                            <svg
+                              className="h-3.5 w-3.5 animate-spin"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              aria-hidden="true"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              />
+                            </svg>
+                            <span>Processing…</span>
                           </span>
                         )}
                       </div>
-    
+              
                       <div className="mt-1 text-xs text-[var(--muted)]">
-                        Created{" "}
+                        Created:{" "}
                         {new Date(doc.created_at).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",
@@ -123,22 +135,19 @@ export default async function DocumentsPage() {
                         })}
                       </div>
                     </div>
-    
-                    {/* Right side */}
+              
                     <div className="flex flex-wrap items-center gap-2">
+                      {/* Render ProcessDocButton directly, no wrapper with onClick */}
                       {doc.status !== "PROCESSED" && (
                         <ProcessDocButton documentId={doc.id} />
                       )}
-    
-                      <Link
-                        href={`/documents/${doc.id}`}
-                        className="text-sm font-medium text-[var(--brand-2)] hover:underline"
-                      >
+              
+                      <span className="text-sm font-medium text-[var(--brand-2)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
                         Open →
-                      </Link>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
