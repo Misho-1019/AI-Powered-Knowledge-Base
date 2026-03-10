@@ -75,8 +75,6 @@ backend design.
 
 ## 🖼️ Screenshots (Recommended Order)
 
-Add screenshots to a folder like `views/` (or `public/screenshots/`) and update paths below.
-
 ### 1️⃣ Ask Interface (Answer + Sources)
 
 ![Ask Interface](views/Screenshot%202026-03-10%20043626.png)
