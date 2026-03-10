@@ -58,7 +58,7 @@ export async function runRag(params: {
         match_count: k,
         user_id_input: userId,
         document_id_input: params.documentId ?? null,
-    })
+    } as any)
 
     if (matchErr) return { ok: false, error: matchErr.message };
 

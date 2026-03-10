@@ -91,8 +91,7 @@ export async function POST(request: Request) {
                     content: text.substring(0, 10_000),
                     status: 'PROCESSING',
                     metadata: metadata ?? {},
-                },
-                { returning: 'representation' }
+                }
             )
             .select('id')
             .single();
