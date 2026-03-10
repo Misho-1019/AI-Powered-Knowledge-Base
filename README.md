@@ -1,36 +1,216 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📚 AI-Powered Knowledge Base
 
-## Getting Started
+### Full-Stack SaaS Architecture with AI-Enhanced Document Retrieval
 
-First, run the development server:
+A production-oriented full-stack web application that enables users to\
+**upload documents, process them into searchable chunks, and query them
+using AI-powered retrieval.**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+This project emphasizes clean architecture, secure multi-tenant design,
+structured document ingestion, and scalable API-driven workflows, with
+AI serving as an integrated feature --- not the sole focus.
+
+------------------------------------------------------------------------
+
+## 🎯 Project Purpose
+
+Modern SaaS products increasingly require structured document handling
+combined with intelligent querying.
+
+This application demonstrates how to design a system that:
+
+-   Accepts user-scoped document uploads
+-   Processes documents into structured, searchable chunks
+-   Stores embeddings for semantic retrieval
+-   Executes secure, user-isolated similarity queries
+-   Generates AI-assisted responses grounded strictly in retrieved data
+
+The system reflects real-world SaaS architecture patterns, including
+separation of concerns, authentication boundaries, and production-minded
+backend design.
+
+------------------------------------------------------------------------
+
+## 🚀 Core Features
+
+### Document Management
+
+-   Secure file upload via Supabase Storage
+-   Text-note ingestion (no file required)
+-   Status lifecycle (PENDING, PROCESSING, PROCESSED)
+-   Document detail view with chunk inspection
+-   User-scoped document isolation
+
+### Processing Pipeline
+
+-   Server-side PDF extraction (pdfjs)
+-   Token-aware chunk segmentation
+-   Embedding generation per chunk
+-   Structured chunk persistence
+-   Deterministic vector search via Postgres RPC
+
+### Retrieval & AI Integration
+
+-   Semantic similarity search across documents
+-   Optional single-document scoping
+-   Similarity threshold filtering
+-   Context assembly from top matches
+-   AI-generated answers constrained to retrieved sources
+-   Transparent source citation format
+
+---------------------------------------------------------------------
+
+---
+
+## 🌐 Live Demo
+
+- **Frontend:** <ADD_VERCEL_URL_HERE>
+- **Backend API:** <ADD_API_URL_HERE> *(if applicable)*
+- **Database & Storage:** Supabase
+
+> ⚠️ Note: This is a portfolio deployment. Cold starts may occur depending on hosting tier.
+
+---
+
+## 🖼️ Screenshots (Recommended Order)
+
+Add screenshots to a folder like `views/` (or `public/screenshots/`) and update paths below.
+
+### 1️⃣ Ask Interface (Answer + Sources)
+
+![Ask Interface](views/ask.png)
+
+### 2️⃣ Documents List (Statuses + Actions)
+
+![Documents List](views/documents-list.png)
+
+### 3️⃣ Document Detail (Chunks)
+
+![Document Detail](views/document-detail.png)
+
+### 4️⃣ Upload Document
+
+![Upload Document](views/upload.png)
+
+### 5️⃣ Auth / New Note (Optional)
+
+![Auth](views/auth.png)
+![New Note](views/new-note.png)
+
+---
+
+## 🏗️ Architecture Overview
+
+The application follows a layered client--server architecture:
+
+### Client Layer (Next.js App Router)
+
+-   Server + Client Components
+-   Structured loading & empty states
+-   Focus-visible accessibility patterns
+-   Clear separation between UI and data logic
+
+### API Layer (Next.js API Routes)
+
+Handles document creation, ingestion, embedding generation, vector
+similarity search, and retrieval-augmented answer generation.
+
+### Data Layer (Supabase)
+
+-   PostgreSQL for document metadata & chunks
+-   Vector similarity via RPC function
+-   Supabase Storage for raw file handling
+-   Row-level user isolation
+
+This mirrors real SaaS systems where AI is layered on top of structured
+backend services.
+
+------------------------------------------------------------------------
+
+## 🗄️ Database Design Highlights
+
+-   documents table (metadata + lifecycle state)
+-   document_chunks table (text + embeddings)
+-   Indexed retrieval queries
+-   Overload-free RPC signature for deterministic vector search
+-   User-scoped filtering enforced at query level
+
+------------------------------------------------------------------------
+
+## 🔒 Security & Production Considerations
+
+-   Supabase Auth integration
+-   Server-side validation for ingestion routes
+-   User-isolated data access
+-   Environment variables excluded from version control
+-   Secure credential handling (no secrets exposed client-side)
+
+------------------------------------------------------------------------
+
+## 🛠️ Tech Stack
+
+### Frontend
+
+-   Next.js (App Router)
+-   React
+-   Tailwind CSS
+-   Component-based UI system
+
+### Backend
+
+-   Next.js API Routes
+-   Supabase (PostgreSQL + Storage + Auth)
+-   Vector similarity search via Postgres RPC
+-   HuggingFace Inference API (embeddings + LLM)
+
+------------------------------------------------------------------------
+
+## ▶️ Running Locally
+
+### Install dependencies
+
+``` bash
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Configure environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+``` env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+HF_API_KEY=
+```
 
-## Learn More
+### Start development server
 
-To learn more about Next.js, take a look at the following resources:
+``` bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Application runs on:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+    http://localhost:3000
 
-## Deploy on Vercel
+------------------------------------------------------------------------
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🌱 Future Improvements
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+-   Background job queue for document processing
+-   Embedding batching for performance
+-   Streaming AI responses
+-   Chunk pagination for large datasets
+-   Usage analytics dashboard
+
+------------------------------------------------------------------------
+
+## 👤 Author Note
+
+Built with a production mindset, focusing on scalable SaaS architecture
+and structured backend design, with AI integrated as a feature layer
+rather than a standalone gimmick.
+
+This project demonstrates practical full-stack engineering applied to
+document-driven workflows.
