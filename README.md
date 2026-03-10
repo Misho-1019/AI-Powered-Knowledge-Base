@@ -64,9 +64,10 @@ backend design.
 
 ## 🌐 Live Demo
 
-- **Frontend:** <ADD_VERCEL_URL_HERE>
-- **Backend API:** <ADD_API_URL_HERE> *(if applicable)*
-- **Database & Storage:** Supabase
+- **Live App:** https://ai-powered-knowledge-base-eight.vercel.app
+- **Backend:** Next.js API routes (serverless functions on Vercel)
+- **Database & Auth:** Supabase (Postgres + RLS + Storage)
+- **LLM Inference:** Hugging Face API
 
 > ⚠️ Note: This is a portfolio deployment. Cold starts may occur depending on hosting tier.
 
@@ -78,24 +79,24 @@ Add screenshots to a folder like `views/` (or `public/screenshots/`) and update 
 
 ### 1️⃣ Ask Interface (Answer + Sources)
 
-![Ask Interface](views/ask.png)
+![Ask Interface](views/Screenshot%202026-03-10%20043626.png)
 
 ### 2️⃣ Documents List (Statuses + Actions)
 
-![Documents List](views/documents-list.png)
+![Documents List](views/Screenshot%202026-03-10%20043656.png)
 
 ### 3️⃣ Document Detail (Chunks)
 
-![Document Detail](views/document-detail.png)
+![Document Detail](views/Screenshot%202026-03-10%20043740.png)
 
 ### 4️⃣ Upload Document
 
-![Upload Document](views/upload.png)
+![Upload Document](views/Screenshot%202026-03-10%20043803.png)
 
 ### 5️⃣ Auth / New Note (Optional)
 
-![Auth](views/auth.png)
-![New Note](views/new-note.png)
+![Auth](views/Screenshot%202026-03-10%20043811.png)
+![New Note](views/Screenshot%202026-03-10%20043811.png)
 
 ---
 
