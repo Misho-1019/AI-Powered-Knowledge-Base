@@ -28,13 +28,75 @@ export default function UploadDocumentPage() {
       return;
     }
 
-    // File storage moved off Supabase (whose project was deleted) and is being
-    // reimplemented on Cloudflare R2 in Phase 4. Until then this fails with an
-    // explicit message instead of a dead-host error.
-    setUploading(false);
-    setMessage(
-      "File storage is being migrated and is not available yet. Text notes work today — use “New Note” instead.",
-    );
+    setUploading(true);
+
+    try {
+      // 1. Ask the server for a presigned PUT. The browser then uploads
+      //    straight to R2, so file bytes never pass through the serverless
+      //    request-body limit (~4.5 MB on Vercel).
+      const presignRes = await fetch("/api/uploads/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+      });
+      const presigned = await presignRes.json();
+
+      if (!presignRes.ok || !presigned.ok) {
+        setUploading(false);
+        setMessage(
+          `Could not prepare the upload: ${presigned.error ?? presignRes.status}`,
+        );
+        return;
+      }
+
+      // 2. PUT the bytes to R2. Content-Type is part of the signature, so it
+      //    must match the value the server returned.
+      const putRes = await fetch(presigned.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": presigned.contentType },
+        body: file,
+      });
+
+      if (!putRes.ok) {
+        setUploading(false);
+        setMessage(
+          `Storage rejected the upload (${putRes.status}). If the browser console shows a CORS error, the bucket is missing its CORS rule.`,
+        );
+        return;
+      }
+
+      setStoragePath(presigned.key);
+
+      // 3. Record the document row.
+      const docRes = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: file.name,
+          storagePath: presigned.key,
+          originalFilename: file.name,
+        }),
+      });
+      const docData = await docRes.json();
+
+      setUploading(false);
+
+      if (!docData.ok) {
+        setMessage(
+          `Uploaded to storage, but the document record failed: ${docData.error ?? "unknown error"}`,
+        );
+        return;
+      }
+
+      setMessage(
+        `Uploaded. Document created: ${docData.documentId}. Open it from Documents and click Process.`,
+      );
+    } catch (err) {
+      setUploading(false);
+      setMessage(err instanceof Error ? err.message : "Upload failed");
+    }
   };
 
   return (
@@ -49,10 +111,10 @@ export default function UploadDocumentPage() {
       </div>
 
       <NoticeCard
-        title="File uploads are temporarily unavailable"
-        description="Storage is being migrated off Supabase and onto Cloudflare R2. Text notes already work end to end."
-        actionHref="/documents/new"
-        actionLabel="Create a note instead →"
+        title="Files upload straight to Cloudflare R2"
+        description="Your browser sends the file directly to object storage, so nothing passes through the app server. After uploading, open the document and click Process."
+        actionHref="/documents"
+        actionLabel="Go to documents →"
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
