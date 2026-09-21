@@ -4,8 +4,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useEffect, useState } from "react";
+import { authClient } from "@/lib/auth-client";
 import Button from "@/components/ui/Button";
 
 function getPageMeta(pathname: string) {
@@ -24,24 +24,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { title, subtitle } = getPageMeta(pathname);
 
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const [userEmail, setUserEmail] = useState<string>("");
+  const { data: session } = authClient.useSession();
+  const userEmail = session?.user?.email ?? "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? "");
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user?.email ?? "");
-    });
-
-    return () => sub.subscription.unsubscribe();
-  }, [supabase]);
-
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await authClient.signOut();
   };
 
   // close sidebar on navigation changes (mobile)

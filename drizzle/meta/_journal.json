@@ -8,6 +8,13 @@
       "when": 1790028908732,
       "tag": "0000_careless_silver_surfer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790032951519,
+      "tag": "0001_past_galactus",
+      "breakpoints": true
     }
   ]
 }

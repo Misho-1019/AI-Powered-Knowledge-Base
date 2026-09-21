@@ -11,6 +11,7 @@ import {
   uuid,
   vector,
 } from 'drizzle-orm/pg-core'
+import { user } from './auth-schema'
 
 /**
  * Lifecycle of a document through the ingestion pipeline.
@@ -34,11 +35,13 @@ export const documents = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     /**
-     * Owning user. Deliberately NOT a foreign key yet — the Better Auth
-     * `user` table arrives in Phase 3, at which point this gains a real FK
-     * with ON DELETE CASCADE.
+     * Owning user. Real FK with ON DELETE CASCADE — possible only because
+     * Better Auth keeps its `user` table in this same database. Deleting a
+     * user removes their documents (and, via a second cascade, their chunks).
      */
-    userId: uuid('user_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
     title: text('title').notNull(),
     /** Full note text for note-type documents. Never truncated. */
     content: text('content'),

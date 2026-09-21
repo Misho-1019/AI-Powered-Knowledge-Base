@@ -2,7 +2,7 @@ import { embedText } from "@/lib/ai/embeddings";
 import { requireUser } from "@/lib/auth/require-user";
 import { deleteChunksByDocument, insertChunks } from "@/lib/repositories/chunks";
 import { getDocument, setStatus } from "@/lib/repositories/documents";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { downloadObject } from "@/lib/storage";
 import { NextResponse } from "next/server";
 
 import { writeFile, unlink } from "node:fs/promises";
@@ -84,16 +84,7 @@ export async function POST(
   try {
     await setStatus(userId, id, "PROCESSING");
 
-    const supabase = await createSupabaseServerClient();
-    const { data: fileData, error: dlErr } = await supabase.storage
-      .from("documents")
-      .download(doc.storagePath);
-
-    if (dlErr || !fileData) {
-      throw new Error(dlErr?.message ?? "Download failed");
-    }
-
-    const buffer = Buffer.from(await fileData.arrayBuffer());
+    const buffer = await downloadObject(doc.storagePath);
     const ext = getExt(doc.storagePath);
     let text = "";
 

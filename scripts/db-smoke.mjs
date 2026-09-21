@@ -53,8 +53,13 @@ try {
   check('hnsw uses vector_cosine_ops', /vector_cosine_ops/.test(hnsw?.indexdef ?? ''))
   check('chunk uniqueness index exists', idxNames.includes('document_chunks_doc_index_uq'))
 
-  // round-trip: insert doc + chunk, read back, verify cosine operator, then cascade delete
+  // round-trip: insert user + doc + chunk, read back, verify cosine, then cascade
   const userId = crypto.randomUUID()
+  await client.query(
+    `insert into "user" (id, name, email, email_verified)
+     values ($1, 'Smoke Test', $2, false)`,
+    [userId, `smoke+${userId}@example.test`],
+  )
   const doc = await client.query(
     `insert into documents (user_id, title, content, status)
      values ($1, $2, $3, 'PENDING') returning id`,
@@ -86,12 +91,27 @@ try {
   )
   check('cosine operator (<=>) works', sim.rows.length === 1, `rows: ${sim.rows.length}`)
 
-  await client.query(`delete from documents where id = $1`, [docId])
+  // Deleting the USER must cascade documents -> chunks (two levels).
+  await client.query(`delete from "user" where id = $1`, [userId])
+
+  const docsLeft = await client.query(
+    `select count(*)::int as n from documents where id = $1`,
+    [docId],
+  )
   const orphans = await client.query(
     `select count(*)::int as n from document_chunks where document_id = $1`,
     [docId],
   )
-  check('ON DELETE CASCADE removed chunks', orphans.rows[0].n === 0, `left: ${orphans.rows[0].n}`)
+  check(
+    'ON DELETE CASCADE removed the document',
+    docsLeft.rows[0].n === 0,
+    `left: ${docsLeft.rows[0].n}`,
+  )
+  check(
+    'ON DELETE CASCADE removed chunks (two levels)',
+    orphans.rows[0].n === 0,
+    `left: ${orphans.rows[0].n}`,
+  )
 } catch (err) {
   console.error('\nERROR:', err.message)
   failures++

@@ -1,13 +1,14 @@
 "use client";
 
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { useMemo, useState } from "react";
+import { authClient } from "@/lib/auth-client";
+import { useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import NoticeCard from "@/components/ui/NoticeCard";
 import Link from "next/link";
 
 export default function UploadDocumentPage() {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const { data: session } = authClient.useSession();
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -22,59 +23,18 @@ export default function UploadDocumentPage() {
       return;
     }
 
-    setUploading(true);
-
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (userErr || !user) {
-      setUploading(false);
+    if (!session?.user) {
       setMessage("You must be signed in to upload.");
       return;
     }
 
-    const userId = user.id;
-
-    const safeName = file.name.replaceAll(" ", "_");
-    const path = `${userId}/${Date.now()}-${safeName}`;
-
-    const { error: uploadErr } = await supabase.storage
-      .from("documents")
-      .upload(path, file, {
-        upsert: false,
-        contentType: file.type || "application/octet-stream",
-      });
-
+    // File storage moved off Supabase (whose project was deleted) and is being
+    // reimplemented on Cloudflare R2 in Phase 4. Until then this fails with an
+    // explicit message instead of a dead-host error.
     setUploading(false);
-
-    if (uploadErr) {
-      setMessage(`Upload failed: ${uploadErr.message}`);
-      return;
-    }
-
-    setStoragePath(path);
-
-    const docRes = await fetch("/api/documents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        title: file.name,
-        storagePath: path,
-        originalFilename: file.name,
-      }),
-    });
-
-    const docData = await docRes.json();
-
-    if (!docData.ok) {
-      setMessage(
-        `Upload ok but DB record failed: ${docData.error || "unknown error"}`,
-      );
-      return;
-    }
-
-    setMessage(`Upload successful. Document created: ${docData.documentId}`);
+    setMessage(
+      "File storage is being migrated and is not available yet. Text notes work today — use “New Note” instead.",
+    );
   };
 
   return (
@@ -87,6 +47,13 @@ export default function UploadDocumentPage() {
           it from the Documents page to extract text and generate embeddings.
         </p>
       </div>
+
+      <NoticeCard
+        title="File uploads are temporarily unavailable"
+        description="Storage is being migrated off Supabase and onto Cloudflare R2. Text notes already work end to end."
+        actionHref="/documents/new"
+        actionLabel="Create a note instead →"
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Main upload card */}

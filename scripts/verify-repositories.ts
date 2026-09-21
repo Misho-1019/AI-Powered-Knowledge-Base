@@ -25,9 +25,29 @@ async function main() {
   } = await import('../src/lib/repositories/chunks')
   const { matchChunks } = await import('../src/lib/repositories/search')
 
+  const { db } = await import('../src/db')
+  const { user } = await import('../src/db/auth-schema')
+  const { inArray } = await import('drizzle-orm')
+
   const userA = crypto.randomUUID()
   const userB = crypto.randomUUID()
   const created: string[] = []
+
+  // Real users are required now that documents.user_id has an FK.
+  await db.insert(user).values([
+    {
+      id: userA,
+      name: 'Repo Test A',
+      email: `repo-a+${userA}@example.test`,
+      emailVerified: false,
+    },
+    {
+      id: userB,
+      name: 'Repo Test B',
+      email: `repo-b+${userB}@example.test`,
+      emailVerified: false,
+    },
+  ])
 
   try {
     // --- setup: user A owns a document with one chunk ---
@@ -141,14 +161,9 @@ async function main() {
     console.error('\nERROR:', err instanceof Error ? err.message : err)
     failures++
   } finally {
-    // cleanup: deleting the parent must cascade the chunks
-    const { db } = await import('../src/db')
-    const { documents } = await import('../src/db/schema')
-    const { inArray } = await import('drizzle-orm')
-    if (created.length) {
-      await db.delete(documents).where(inArray(documents.id, created))
-    }
-    console.log('\ncleaned up test documents')
+    // Deleting the users must cascade their documents and chunks.
+    await db.delete(user).where(inArray(user.id, [userA, userB]))
+    console.log('\ncleaned up test users (cascaded documents + chunks)')
   }
 
   console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'}`)

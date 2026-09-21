@@ -3,39 +3,72 @@
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { useEffect, useMemo, useState } from "react"
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+import { useState } from "react"
+
+/** Where to land after a successful sign-in. */
+function destinationAfterAuth() {
+  if (typeof window === "undefined") return "/documents";
+  const next = new URLSearchParams(window.location.search).get("next");
+  // Only allow same-site relative paths.
+  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
+  return "/documents";
+}
 
 export default function AuthPage() {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), [])
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
+
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [user, setUser] = useState<any>(null);
   const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    });
-
-    return () => sub.subscription.unsubscribe();
-  }, [supabase])
+  const user = session?.user ?? null;
 
   const signUp = async () => {
-    const { error } = await supabase.auth.signUp({ email, password })
-    setMessage(error ? error.message : 'Signed Up successfully!')
+    setBusy(true);
+    setMessage('');
+    const { error } = await authClient.signUp.email({
+      email,
+      password,
+      // Better Auth requires a name; fall back to the email local-part.
+      name: name.trim() || email.split('@')[0] || 'New user',
+    });
+    setBusy(false);
+
+    if (error) {
+      setMessage(error.message ?? 'Could not create the account.');
+      return;
+    }
+    setMessage('Account created.');
+    router.push(destinationAfterAuth());
+    router.refresh();
   }
 
   const signIn = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setMessage(error ? error.message : 'Signed In successfully!')
+    setBusy(true);
+    setMessage('');
+    const { error } = await authClient.signIn.email({ email, password });
+    setBusy(false);
+
+    if (error) {
+      setMessage(error.message ?? 'Could not sign in.');
+      return;
+    }
+    setMessage('Signed in.');
+    router.push(destinationAfterAuth());
+    router.refresh();
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setMessage('Signed Out')
+    setBusy(true);
+    await authClient.signOut();
+    setBusy(false);
+    setMessage('Signed out.');
+    router.refresh();
   }
 
   const isValid = !!email && !!password;
@@ -57,7 +90,7 @@ export default function AuthPage() {
               <div>
                 <div className="text-sm font-semibold">Auth</div>
                 <div className="text-xs text-[var(--muted)]">
-                  Credentials are handled by Supabase Auth.
+                  Email and password, handled by Better Auth.
                 </div>
               </div>
 
@@ -65,7 +98,7 @@ export default function AuthPage() {
               <div className="hidden sm:flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3 py-1 text-xs">
                 <span className="text-[var(--muted)]">Signed in:</span>
                 <span className="font-medium text-[var(--text)]">
-                  {user ? user.email : "none"}
+                  {isPending ? "…" : user ? user.email : "none"}
                 </span>
               </div>
             </div>
@@ -94,23 +127,35 @@ export default function AuthPage() {
                   autoComplete="current-password"
                 />
                 <p className="text-xs text-[var(--muted)]">
-                  For demo use, keep it simple — you can always reset later.
+                  Minimum 8 characters.
                 </p>
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <label className="text-sm font-medium">
+                  Name <span className="text-[var(--muted)]">(new accounts only)</span>
+                </label>
+                <Input
+                  placeholder="Optional — defaults to your email handle"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                />
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-              <Button onClick={signIn} variant="primary" disabled={!isValid}>
+              <Button onClick={signIn} variant="primary" disabled={!isValid || busy}>
                 Sign In
               </Button>
-              <Button onClick={signUp} variant="secondary" disabled={!isValid}>
+              <Button onClick={signUp} variant="secondary" disabled={!isValid || busy}>
                 Create account
               </Button>
 
               <div className="sm:flex-1" />
 
-              <Button onClick={signOut} variant="ghost" disabled={!user}>
+              <Button onClick={signOut} variant="ghost" disabled={!user || busy}>
                 Sign Out
               </Button>
             </div>
@@ -127,7 +172,7 @@ export default function AuthPage() {
             <div className="sm:hidden rounded-xl border border-[var(--border)] bg-white p-4">
               <div className="text-xs font-semibold text-slate-700">Signed in</div>
               <div className="mt-1 text-sm text-[var(--muted)]">
-                {user ? user.email : "none"}
+                {isPending ? "…" : user ? user.email : "none"}
               </div>
             </div>
           </div>

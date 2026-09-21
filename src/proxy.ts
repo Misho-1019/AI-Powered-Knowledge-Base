@@ -1,34 +1,32 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from 'next/server'
+import { getSessionCookie } from 'better-auth/cookies'
 
+/**
+ * Optimistic gate for page routes.
+ *
+ * NOT the security boundary. `getSessionCookie` only checks that a session
+ * cookie exists — it does not validate it. Real enforcement lives in
+ * `requireUser()` inside every page and route handler, which verifies the
+ * session against the database.
+ *
+ * This exists purely so signed-out visitors get sent to /auth instead of
+ * seeing a "Not signed in" card on a page they navigated to.
+ *
+ * Note the matcher covers page routes only: API routes must NOT be redirected,
+ * because a 302 would break `fetch()` callers that expect a 401.
+ */
 export async function proxy(request: NextRequest) {
-    const response = NextResponse.next({ request })
+  const sessionCookie = getSessionCookie(request)
 
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll() {
-                    return request.cookies.getAll();
-                },
-                setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => {
-                        request.cookies.set(name, value);
-                        response.cookies.set(name, value, options)
-                    })
-                }
-            }
-        }
-    )
+  if (!sessionCookie) {
+    const url = new URL('/auth', request.url)
+    url.searchParams.set('next', request.nextUrl.pathname)
+    return NextResponse.redirect(url)
+  }
 
-    await supabase.auth.getUser();
-
-    return response;
+  return NextResponse.next()
 }
 
 export const config = {
-    matcher: [
-        "/((?!_next/static|_next/image|favicon.ico).*)",
-    ]
+  matcher: ['/documents', '/documents/:path*'],
 }
