@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local planning scratch (temporary — delete with the file)
 tasks.md
+
+# local dev server logs
+devserver*.log
