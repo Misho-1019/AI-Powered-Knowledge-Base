@@ -4,42 +4,49 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import NoticeCard from "@/components/ui/NoticeCard";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
+import { listDocuments } from "@/lib/repositories/documents";
+import { unstable_rethrow } from "next/navigation";
 import Link from "next/link";
 
 export default async function DocumentsPage() {
-    const supabase = await createSupabaseServerClient();
+  const auth = await requireUser();
 
-    const { data: userData } = await supabase.auth.getUser();
+  if (!auth.ok) {
+    const signedOut = auth.status === 401;
+    return (
+      <div className="space-y-6">
+        <NoticeCard
+          title={signedOut ? "Not signed in" : "Authentication unavailable"}
+          description={
+            signedOut
+              ? "You need an account to view and manage documents."
+              : "The authentication service could not be reached. This is a server-side problem, not a problem with your session."
+          }
+          variant={signedOut ? "info" : "error"}
+          actionHref={signedOut ? "/auth" : undefined}
+          actionLabel={signedOut ? "Go to auth →" : undefined}
+        />
+      </div>
+    );
+  }
 
-    const user = userData.user;
-
-    if (!user) {
-        return (
-            <div className="space-y-6">
-                <NoticeCard
-                    title="Not signed in"
-                    description="You need an account to view and manage documents."
-                    actionHref="/auth"
-                    actionLabel="Go to auth →"
-                />
-            </div>
-        )
-    }
-
-    const { data: documents, error } = await supabase.from('documents').select('id, title, status, created_at').order('created_at', { ascending: false })
-
-    if (error) {
-      return (
-        <div className="space-y-6">
-          <NoticeCard
-            title="Could not load documents"
-            description={error.message}
-            variant="error"
-          />
-        </div>
-      );
-    }
+  let documents: Awaited<ReturnType<typeof listDocuments>>;
+  try {
+    documents = await listDocuments(auth.user.id);
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("[documents] list failed:", err);
+    return (
+      <div className="space-y-6">
+        <NoticeCard
+          title="Could not load documents"
+          description="The database could not be reached. This is a server-side problem — please try again shortly."
+          variant="error"
+        />
+      </div>
+    );
+  }
 
     return (
       <div className="space-y-6">
@@ -128,7 +135,7 @@ export default async function DocumentsPage() {
               
                       <div className="mt-1 text-xs text-[var(--muted)]">
                         Created:{" "}
-                        {new Date(doc.created_at).toLocaleDateString(undefined, {
+                        {new Date(doc.createdAt).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",
                           day: "2-digit",

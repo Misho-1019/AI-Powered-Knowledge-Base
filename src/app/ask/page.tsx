@@ -11,10 +11,19 @@ import { useEffect, useState } from "react";
 
 type DocOption = { id: string, title: string, status: string };
 
+type Source = {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  chunkIndex: number;
+  textChunk: string;
+  similarity: number;
+};
+
 export default function AskPage() {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState<string>("");
-  const [sources, setSources] = useState<any[]>([]);
+  const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,7 +53,7 @@ export default function AskPage() {
     setAnswer("");
     setSources([]);
 
-    const payload: any = { query, k: 5 };
+    const payload: { query: string; k: number; documentId?: string } = { query, k: 5 };
     if (docId) payload.documentId = docId;
 
     try {
@@ -65,9 +74,9 @@ export default function AskPage() {
 
       setAnswer(data.answer ?? "");
       setSources(data.sources ?? []);
-    } catch (err: any) {
+    } catch (err) {
       setLoading(false);
-      setError(err?.message || "Request failed");
+      setError(err instanceof Error ? err.message : "Request failed");
     }
   };
 
@@ -275,8 +284,13 @@ export default function AskPage() {
                       className="rounded-xl border border-[var(--border)] bg-white p-4"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs text-[var(--muted)]">
-                          [[doc:{s.document_id}#chunk:{s.chunk_index}]]
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-medium text-[var(--text)]">
+                            {s.documentTitle}
+                          </div>
+                          <div className="text-xs text-[var(--muted)]">
+                            [[doc:{s.documentId}#chunk:{s.chunkIndex}]]
+                          </div>
                         </div>
                         <div className="text-xs text-[var(--muted)]">
                           similarity:{" "}
@@ -287,7 +301,7 @@ export default function AskPage() {
                       </div>
   
                       <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm whitespace-pre-wrap">
-                        {s.text_chunk}
+                        {s.textChunk}
                       </div>
                     </li>
                   ))}

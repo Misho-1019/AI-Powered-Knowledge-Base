@@ -1,4 +1,3 @@
-import path from "node:path";
 import { createRequire } from "node:module";
 import fs from "node:fs/promises";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";

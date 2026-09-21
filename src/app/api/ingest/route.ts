@@ -1,144 +1,127 @@
 import { embedText } from "@/lib/ai/embeddings";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
+import { insertChunks } from "@/lib/repositories/chunks";
+import { createDocument, setStatus } from "@/lib/repositories/documents";
 import { NextResponse } from "next/server";
 
-
 function chunkText(text: string, chunkSize = 1500, overlap = 300) {
-    const clean = (text ?? "").trim();
-    if (!clean) return [];
+  const clean = (text ?? "").trim();
+  if (!clean) return [];
 
-    // Safety guards to prevent infinite loops / weird params
-    const size = Math.max(200, Math.floor(chunkSize));
-    const ov = Math.max(0, Math.floor(overlap));
+  const size = Math.max(200, Math.floor(chunkSize));
+  const ov = Math.max(0, Math.floor(overlap));
+  const safeOverlap = Math.min(ov, size - 1);
 
-    // overlap must be smaller than chunk size
-    const safeOverlap = Math.min(ov, size - 1);
+  const chunks: string[] = [];
+  let start = 0;
+  const MAX_CHUNKS = 2000;
 
-    const chunks: string[] = [];
-    let start = 0;
+  while (start < clean.length && chunks.length < MAX_CHUNKS) {
+    const end = Math.min(start + size, clean.length);
+    const piece = clean.slice(start, end).trim();
+    if (piece) chunks.push(piece);
 
-    // Another guard: hard cap number of chunks to avoid crashes on unexpected input
-    const MAX_CHUNKS = 2000;
+    if (end === clean.length) break;
 
-    while (start < clean.length && chunks.length < MAX_CHUNKS) {
-        const end = Math.min(start + size, clean.length);
-        const piece = clean.slice(start, end).trim();
-        if (piece) chunks.push(piece);
+    const nextStart = end - safeOverlap;
+    start = nextStart <= start ? end : nextStart;
+  }
 
-        if (end === clean.length) break; // reached the end
+  if (chunks.length >= MAX_CHUNKS) {
+    throw new Error("Document too large for MVP chunking (exceeded MAX_CHUNKS).");
+  }
 
-        // Ensure start always moves forward
-        const nextStart = end - safeOverlap;
-        if (nextStart <= start) {
-            start = end; // fallback: no overlap if it would stall
-        } else {
-            start = nextStart;
-        }
-    }
-
-    if (chunks.length >= MAX_CHUNKS) {
-        throw new Error("Document too large for MVP chunking (exceeded MAX_CHUNKS).");
-    }
-
-    return chunks;
+  return chunks;
 }
 
 export async function POST(request: Request) {
-    try {
-        const body = await request.json().catch(() => null)
+  try {
+    const body = await request.json().catch(() => null);
 
-        if (!body || typeof body !== 'object') {
-            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
-        }
-
-        const { title, text, metadata } = body as {
-            title?: string;
-            text?: string;
-            metadata?: Record<string, any>;
-        }
-
-        if (!title || typeof title !== 'string') {
-            return NextResponse.json({ error: 'Missing or Invalid title' }, { status: 400 })
-        }
-
-        if (!text || typeof text !== 'string') {
-            return NextResponse.json({ error: 'Missing or Invalid text' }, { status: 400 })
-        }
-
-        const supabase = await createSupabaseServerClient();
-
-        const { data: userData, error: userErr } = await supabase.auth.getUser();
-
-        if (userErr) {
-            console.error('auth.getUser error:', userErr);
-            return NextResponse.json({ error: 'Unable to get user' }, { status: 500 })
-        }
-
-        const user = userData?.user;
-
-        if (!user) {
-            return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-        }
-
-        const user_id = user.id;
-
-        const { data: docData, error: insertDocErr } = await supabase
-            .from('documents')
-            .insert(
-                {
-                    user_id,
-                    title,
-                    content: text.substring(0, 10_000),
-                    status: 'PROCESSING',
-                    metadata: metadata ?? {},
-                }
-            )
-            .select('id')
-            .single();
-
-        if (insertDocErr || !docData?.id) {
-            console.error('insert document error', insertDocErr);
-            return NextResponse.json({ error: 'Failed to create document' }, { status: 500 })
-        }
-
-        const documentId = docData.id as string;
-
-        const chunks = chunkText(text, 1500, 300)
-
-        const chunkRows = [];
-
-        for (let idx = 0; idx < chunks.length; idx++) {
-            const c = chunks[idx];
-            const embedding = await embedText(c);
-
-            chunkRows.push({
-                document_id: documentId,
-                user_id,
-                chunk_index: idx,
-                text_chunk: c,
-                embedding,
-                token_count: Math.max(1, Math.ceil(c.length / 4))
-            })
-        }
-
-        const { error: insertChunksErr } = await supabase.from('document_chunks').insert(chunkRows);
-
-        if (insertChunksErr) {
-            console.error('insert chunks error:', insertChunksErr);
-
-            await supabase.from('documents').update({ status: 'PENDING' }).eq('id', documentId)
-            return NextResponse.json({ error: 'Failed to insert document chunks' }, { status: 500 })
-        }
-
-        await supabase.from('documents').update({ status: 'PROCESSED' }).eq('id', documentId)
-
-        return NextResponse.json({
-            ok: true,
-            documentId,
-            chunkCount: chunks.length
-        })
-    } catch (error) {
-        console.error('ingest error:', error);
-        return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+
+    const { title, text, metadata } = body as {
+      title?: string;
+      text?: string;
+      metadata?: Record<string, unknown>;
+    };
+
+    if (!title || typeof title !== "string") {
+      return NextResponse.json(
+        { error: "Missing or invalid title" },
+        { status: 400 },
+      );
+    }
+
+    if (!text || typeof text !== "string") {
+      return NextResponse.json(
+        { error: "Missing or invalid text" },
+        { status: 400 },
+      );
+    }
+
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const userId = auth.user.id;
+
+    // Guard before creating anything: whitespace-only input is truthy but
+    // chunks to nothing. Previously this produced a PROCESSED document with
+    // zero searchable chunks.
+    const chunks = chunkText(text, 1500, 300);
+    if (chunks.length === 0) {
+      return NextResponse.json(
+        { error: "Text contains no indexable content" },
+        { status: 400 },
+      );
+    }
+
+    const doc = await createDocument({
+      userId,
+      title,
+      // Full text, not a 10k truncation — the previous cut-off silently
+      // discarded content that was nevertheless chunked and embedded.
+      content: text,
+      status: "PROCESSING",
+      metadata: metadata ?? {},
+    });
+
+    try {
+      const rows = [];
+      for (let idx = 0; idx < chunks.length; idx++) {
+        const c = chunks[idx];
+        const embedding = await embedText(c);
+
+        rows.push({
+          documentId: doc.id,
+          userId,
+          chunkIndex: idx,
+          textChunk: c,
+          embedding,
+          tokenCount: Math.max(1, Math.ceil(c.length / 4)),
+        });
+      }
+
+      await insertChunks(rows);
+      await setStatus(userId, doc.id, "PROCESSED");
+
+      return NextResponse.json({
+        ok: true,
+        documentId: doc.id,
+        chunkCount: chunks.length,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Ingestion failed";
+      console.error("[ingest] failed:", message);
+      await setStatus(userId, doc.id, "FAILED", message).catch(() => {});
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  } catch (error) {
+    console.error("[ingest] unexpected error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

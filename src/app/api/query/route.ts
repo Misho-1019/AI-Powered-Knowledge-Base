@@ -1,51 +1,45 @@
 import { embedText } from "@/lib/ai/embeddings";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
+import { matchChunks } from "@/lib/repositories/search";
 import { NextResponse } from "next/server";
 
+/**
+ * Retrieval-only endpoint: returns matching chunks without invoking the LLM.
+ * `/api/ask` builds on the same repository for the full answer path.
+ */
 export async function POST(request: Request) {
-    try {
-        const body = await request.json();
-        const { query, k = 5 } = body;
+  try {
+    const body = await request.json().catch(() => null);
+    const query = body?.query;
+    const k = typeof body?.k === "number" ? body.k : 5;
+    const documentId =
+      typeof body?.documentId === "string" && body.documentId.length > 0
+        ? body.documentId
+        : null;
 
-        if (!query || typeof query !== 'string') {
-            return NextResponse.json(
-                { error: "Missing or invalid query" },
-                { status: 400 },
-            )
-        }
-
-        const supabase = await createSupabaseServerClient();
-
-        const { data: userData } = await supabase.auth.getUser();
-
-        const user = userData.user;
-
-        if (!user) {
-            return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-        }
-
-        const queryEmbedding = await embedText(query);
-
-        const { data, error } = await supabase.rpc('match_chunks', {
-            query_embedding: queryEmbedding,
-            match_count: k,
-            user_id_input: user.id,
-        })
-
-        if (error) {
-            console.error("Vector search error:", error);
-            return NextResponse.json({ error: error.message }, { status: 500 })
-        }
-
-        return NextResponse.json({
-            ok: true,
-            matches: data,
-        })
-    } catch (err: any) {
-        console.error('query error:', err);
-        return NextResponse.json(
-            { error: err.message || 'Server error' },
-            { status: 500 },
-        )
+    if (!query || typeof query !== "string") {
+      return NextResponse.json(
+        { error: "Missing or invalid query" },
+        { status: 400 },
+      );
     }
+
+    const auth = await requireUser();
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    const queryEmbedding = await embedText(query);
+    const matches = await matchChunks({
+      userId: auth.user.id,
+      embedding: queryEmbedding,
+      limit: k,
+      documentId,
+    });
+
+    return NextResponse.json({ ok: true, matches });
+  } catch (err) {
+    console.error("[query] failed:", err);
+    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+  }
 }

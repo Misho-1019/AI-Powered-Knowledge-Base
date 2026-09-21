@@ -1,30 +1,31 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/require-user";
+import { listDocuments } from "@/lib/repositories/documents";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   try {
-    const supabase = await createSupabaseServerClient();
-
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-    const { data, error } = await supabase
-      .from("documents")
-      .select("id,title,status,created_at")
-      .order("created_at", { ascending: false });
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const documents = await listDocuments(auth.user.id);
 
     return NextResponse.json({
       ok: true,
-      documents: (data ?? []).map((d) => ({
+      documents: documents.map((d) => ({
         id: d.id,
         title: d.title,
         status: d.status,
       })),
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+  } catch (err) {
+    console.error("[documents/list] failed:", err);
+    return NextResponse.json(
+      { error: "Could not load documents" },
+      { status: 500 },
+    );
   }
 }

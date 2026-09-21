@@ -42,10 +42,10 @@ export default function ProcessDocButton({ documentId }: { documentId: string })
 
       // refresh server-rendered documents list without full page reload
       router.refresh();
-    } catch (err: any) {
+    } catch (err) {
       setLoading(false);
       setIsError(true);
-      setMsg(err?.message || "Failed");
+      setMsg(err instanceof Error ? err.message : "Failed");
     }
   };
 

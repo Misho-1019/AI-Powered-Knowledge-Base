@@ -1,5 +1,4 @@
 // src/components/ui/EmptyState.tsx
-import Button from "./Button";
 import type { ReactNode } from "react";
 
 export default function EmptyState({
