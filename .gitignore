@@ -45,3 +45,7 @@ tasks.md
 
 # local dev server logs
 devserver*.log
+
+# local transformers.js model caches
+.cache-transformers/
+.cache-cmp/

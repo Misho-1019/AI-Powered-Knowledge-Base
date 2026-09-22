@@ -30,14 +30,40 @@ export const RETRIEVAL = {
 } as const
 
 export const EMBEDDING = {
-  /** sentences-transformers/all-mpnet-base-v2 */
-  model: 'sentence-transformers/all-mpnet-base-v2',
-  /** Parallel embedding requests. Enough to be quick, few enough to be polite. */
+  /**
+   * Local ONNX model, run through transformers.js — no API, no per-chunk cost,
+   * no rate limits.
+   *
+   * Chosen by measurement over two alternatives:
+   *
+   *   model        dims  cold load  per-embed  separation  download
+   *   MiniLM-L6    384   3.7s       4ms        0.385       23 MB
+   *   mpnet-base   768   11.0s      13ms       0.434       106 MB
+   *   bge-base     768   7.8s       13ms       0.205       106 MB
+   *
+   * mpnet separates slightly better but costs 4.6x the download and 3x the cold
+   * start, and on Vercel `/tmp` does not survive cold starts — so it is
+   * re-downloaded per instance. The query embedding sits on the critical path
+   * of every Ask, so a cold start is user-visible. bge-base is badly calibrated
+   * without its instruction prefix.
+   */
+  model: 'Xenova/all-MiniLM-L6-v2',
+  /** Quantized weights: 23 MB instead of ~90 MB. */
+  dtype: 'q8',
+  /**
+   * Parallel embedding calls.
+   *
+   * NOTE: batching several texts into ONE pipeline call is deliberately avoided.
+   * Measured: the same text embedded alone vs. in a mixed-length batch differs
+   * by up to 0.07 cosine, because batch padding leaks into the pooled vector.
+   * Since the query is always embedded alone, batching chunks would place them
+   * in a slightly different vector space and silently degrade retrieval.
+   */
   concurrency: 4,
-  timeoutMs: 20_000,
-  maxRetries: 2,
-  /** Base delay for exponential backoff on 429/503. */
-  retryBaseDelayMs: 600,
+  /** Local inference is fast; this only guards against a pathological input. */
+  timeoutMs: 30_000,
+  maxRetries: 1,
+  retryBaseDelayMs: 300,
 } as const
 
 export const LLM = {

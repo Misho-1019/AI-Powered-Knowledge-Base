@@ -80,7 +80,8 @@ async function main() {
     emailVerified: false,
   })
 
-  const vector = Array.from({ length: 768 }, () => 0.01)
+  const { EMBEDDING_DIMENSIONS } = await import('../src/db/schema')
+  const vector = Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0.01)
   const row = (documentId: string, index: number, text: string) => ({
     documentId,
     userId,

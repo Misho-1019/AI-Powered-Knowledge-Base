@@ -59,7 +59,8 @@ async function main() {
     })
     created.push(docA.id)
 
-    const embedding = Array.from({ length: 768 }, (_, i) => Math.sin(i / 100))
+    const { EMBEDDING_DIMENSIONS } = await import('../src/db/schema')
+  const embedding = Array.from({ length: EMBEDDING_DIMENSIONS }, (_, i) => Math.sin(i / 100))
     await insertChunks([
       {
         documentId: docA.id,

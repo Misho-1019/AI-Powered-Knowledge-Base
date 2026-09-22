@@ -26,10 +26,12 @@ export const documentStatus = pgEnum('document_status', [
 ])
 
 /**
- * Embedding width for sentence-transformers/all-mpnet-base-v2.
- * Changing the embedding model means a migration + full re-embed.
+ * Embedding width for Xenova/all-MiniLM-L6-v2 (384).
+ *
+ * Changing the embedding model means a migration AND a full re-embed of every
+ * chunk, so this constant is the single source of truth for the column width.
  */
-export const EMBEDDING_DIMENSIONS = 768
+export const EMBEDDING_DIMENSIONS = 384
 
 export const documents = pgTable(
   'documents',

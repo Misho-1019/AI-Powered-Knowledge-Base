@@ -11,6 +11,9 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const client = await pool.connect()
+
+/** Must match EMBEDDING_DIMENSIONS in src/db/schema.ts. */
+const DIM = 384
 let failures = 0
 
 function check(label, ok, detail = '') {
@@ -42,7 +45,7 @@ try {
     `select atttypmod from pg_attribute
      where attrelid='public.document_chunks'::regclass and attname='embedding'`,
   )
-  check('embedding is 768-dim', dim.rows[0]?.atttypmod === 768, String(dim.rows[0]?.atttypmod))
+  check('embedding is 384-dim', dim.rows[0]?.atttypmod === DIM, String(dim.rows[0]?.atttypmod))
 
   const idx = await client.query(
     `select indexname, indexdef from pg_indexes where schemaname='public'`,
@@ -68,7 +71,7 @@ try {
   const docId = doc.rows[0].id
   check('insert document', !!docId)
 
-  const vec = '[' + Array.from({ length: 768 }, () => 0.001).join(',') + ']'
+  const vec = '[' + Array.from({ length: DIM }, () => 0.001).join(',') + ']'
   await client.query(
     `insert into document_chunks (document_id, user_id, chunk_index, text_chunk, embedding, token_count)
      values ($1, $2, 0, 'smoke chunk', $3::vector, 2)`,
@@ -82,7 +85,7 @@ try {
     [docId],
   )
   check('read back joined row', back.rows.length === 1, JSON.stringify(back.rows[0]))
-  check('stored vector has 768 dims', back.rows[0]?.dims === 768, String(back.rows[0]?.dims))
+  check('stored vector has 384 dims', back.rows[0]?.dims === DIM, String(back.rows[0]?.dims))
 
   const sim = await client.query(
     `select 1 - (embedding <=> $1::vector) as cosine_similarity
