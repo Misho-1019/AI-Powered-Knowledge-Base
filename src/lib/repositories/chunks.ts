@@ -19,6 +19,40 @@ export async function insertChunks(rows: NewDocumentChunk[]): Promise<void> {
   await db.insert(documentChunks).values(rows)
 }
 
+/**
+ * Swaps a document's chunks atomically.
+ *
+ * The previous flow deleted all chunks and *then* embedded and inserted them.
+ * Any failure in between destroyed a working index and left the document with
+ * zero searchable chunks. Both statements now run in one transaction, so the
+ * old chunks survive unless the new ones are fully ready.
+ *
+ * Refuses an empty replacement on purpose: "processed" must never mean
+ * "no chunks".
+ */
+export async function replaceChunks(
+  userId: string,
+  documentId: string,
+  rows: NewDocumentChunk[],
+): Promise<void> {
+  if (rows.length === 0) {
+    throw new Error('Refusing to replace chunks with an empty set')
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(documentChunks)
+      .where(
+        and(
+          eq(documentChunks.documentId, documentId),
+          eq(documentChunks.userId, userId),
+        ),
+      )
+
+    await tx.insert(documentChunks).values(rows)
+  })
+}
+
 export async function deleteChunksByDocument(
   userId: string,
   documentId: string,

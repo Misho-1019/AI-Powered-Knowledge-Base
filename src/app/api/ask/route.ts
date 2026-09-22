@@ -22,8 +22,8 @@ export async function POST(request: Request) {
     const result = await runRag({
       userId: auth.user.id,
       query,
-      k: k ?? 5,
-      minSimilarity: 0.35,
+      // k and minSimilarity default to RETRIEVAL config.
+      k,
       documentId,
     });
 

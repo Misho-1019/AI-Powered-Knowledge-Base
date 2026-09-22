@@ -1,21 +1,24 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { ALLOWED_UPLOAD_EXTENSIONS, LIMITS, RETRIEVAL } from '@/lib/config'
 
 /**
  * Every request body crosses one of these schemas. Hand-rolled `typeof` checks
  * were replaced because they only verified shape, never bounds.
+ *
+ * The numeric limits themselves live in `@/lib/config`.
  */
 
-export const MAX_TITLE_LENGTH = 200
-export const MAX_TEXT_LENGTH = 200_000
-export const MAX_QUERY_LENGTH = 2_000
-export const MAX_TOP_K = 20
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-export const MAX_METADATA_BYTES = 5_000
-export const MAX_FILENAME_LENGTH = 255
-export const MAX_PDF_PAGES = 50
+export const MAX_TITLE_LENGTH = LIMITS.maxTitleLength
+export const MAX_TEXT_LENGTH = LIMITS.maxTextLength
+export const MAX_QUERY_LENGTH = LIMITS.maxQueryLength
+export const MAX_TOP_K = RETRIEVAL.maxTopK
+export const MAX_UPLOAD_BYTES = LIMITS.maxUploadBytes
+export const MAX_METADATA_BYTES = LIMITS.maxMetadataBytes
+export const MAX_FILENAME_LENGTH = LIMITS.maxFilenameLength
+export const MAX_PDF_PAGES = LIMITS.maxPdfPages
 
-export const ALLOWED_UPLOAD_EXTENSIONS = ['pdf', 'txt', 'md'] as const
+export { ALLOWED_UPLOAD_EXTENSIONS }
 
 export function extensionOf(filename: string): string {
   const idx = filename.lastIndexOf('.')

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:smoke": "node --env-file=.env.local scripts/db-smoke.mjs",
     "cleanup:orphans": "node --env-file=.env.local scripts/cleanup-orphans.mjs",
-    "verify:repos": "tsx scripts/verify-repositories.ts"
+    "verify:repos": "tsx scripts/verify-repositories.ts",
+    "verify:reliability": "tsx scripts/verify-reliability.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",

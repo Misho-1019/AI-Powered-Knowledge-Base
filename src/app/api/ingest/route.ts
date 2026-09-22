@@ -1,40 +1,14 @@
-import { embedText } from "@/lib/ai/embeddings";
+import { embedMany } from "@/lib/ai/embeddings";
 import { requireUser } from "@/lib/auth/require-user";
+import { chunkText, estimateTokens } from "@/lib/chunk";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { insertChunks } from "@/lib/repositories/chunks";
 import { createDocument, setStatus } from "@/lib/repositories/documents";
 import { ingestSchema, parseJsonBody } from "@/lib/validation";
 import { NextResponse } from "next/server";
 
-function chunkText(text: string, chunkSize = 1500, overlap = 300) {
-  const clean = (text ?? "").trim();
-  if (!clean) return [];
-
-  const size = Math.max(200, Math.floor(chunkSize));
-  const ov = Math.max(0, Math.floor(overlap));
-  const safeOverlap = Math.min(ov, size - 1);
-
-  const chunks: string[] = [];
-  let start = 0;
-  const MAX_CHUNKS = 2000;
-
-  while (start < clean.length && chunks.length < MAX_CHUNKS) {
-    const end = Math.min(start + size, clean.length);
-    const piece = clean.slice(start, end).trim();
-    if (piece) chunks.push(piece);
-
-    if (end === clean.length) break;
-
-    const nextStart = end - safeOverlap;
-    start = nextStart <= start ? end : nextStart;
-  }
-
-  if (chunks.length >= MAX_CHUNKS) {
-    throw new Error("Document too large for MVP chunking (exceeded MAX_CHUNKS).");
-  }
-
-  return chunks;
-}
+/** Embedding a long note can exceed the default serverless budget. */
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
@@ -54,7 +28,7 @@ export async function POST(request: Request) {
 
     // Whitespace-only input is truthy but chunks to nothing; previously this
     // produced a PROCESSED document with zero searchable chunks.
-    const chunks = chunkText(text, 1500, 300);
+    const chunks = chunkText(text);
     if (chunks.length === 0) {
       return NextResponse.json(
         { error: "Text contains no indexable content" },
@@ -72,20 +46,17 @@ export async function POST(request: Request) {
     });
 
     try {
-      const rows = [];
-      for (let idx = 0; idx < chunks.length; idx++) {
-        const c = chunks[idx];
-        const embedding = await embedText(c);
+      const vectors = await embedMany(chunks.map((c) => c.text));
 
-        rows.push({
-          documentId: doc.id,
-          userId,
-          chunkIndex: idx,
-          textChunk: c,
-          embedding,
-          tokenCount: Math.max(1, Math.ceil(c.length / 4)),
-        });
-      }
+      const rows = chunks.map((chunk, index) => ({
+        documentId: doc.id,
+        userId,
+        chunkIndex: index,
+        textChunk: chunk.text,
+        embedding: vectors[index],
+        tokenCount: estimateTokens(chunk.text),
+        charStart: chunk.charStart,
+      }));
 
       await insertChunks(rows);
       await setStatus(userId, doc.id, "PROCESSED");

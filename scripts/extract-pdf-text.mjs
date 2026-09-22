@@ -23,8 +23,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
 // Standard font data is needed to map glyphs for PDFs that use the base-14
 // fonts. Without it pdfjs warns and some documents yield no text at all.
+//
+// NOTE: pdfjs requires the factory URL to end in a FORWARD slash, on every
+// platform. Using path.sep here throws "must include trailing slash" on Windows.
 const pdfjsRoot = path.dirname(require.resolve("pdfjs-dist/package.json"));
-const standardFontsDir = path.join(pdfjsRoot, "standard_fonts") + path.sep;
+const standardFontsDir =
+  path.join(pdfjsRoot, "standard_fonts").replace(/[\\/]+$/, "") + "/";
 
 const documentOptions = {
   data: new Uint8Array(buffer),

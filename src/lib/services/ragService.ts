@@ -1,5 +1,6 @@
 import { embedText } from "../ai/embeddings";
 import { chatComplete } from "../ai/llm";
+import { LLM, RETRIEVAL } from "../config";
 import { matchChunks, type ChunkMatch } from "../repositories/search";
 
 export type RagMatch = ChunkMatch;
@@ -15,7 +16,7 @@ export type RagResult =
   | { ok: false; error: string };
 
 function buildContext(matches: RagMatch[]) {
-  const maxChunks = Math.min(matches.length, 6);
+  const maxChunks = Math.min(matches.length, RETRIEVAL.contextChunks);
 
   const parts: string[] = [];
   for (let i = 0; i < maxChunks; i++) {
@@ -37,9 +38,11 @@ export async function runRag(params: {
   minSimilarity?: number;
   documentId?: string;
 }): Promise<RagResult> {
-  const k = typeof params.k === "number" ? params.k : 5;
+  const k = typeof params.k === "number" ? params.k : RETRIEVAL.topK;
   const minSimilarity =
-    typeof params.minSimilarity === "number" ? params.minSimilarity : 0.35;
+    typeof params.minSimilarity === "number"
+      ? params.minSimilarity
+      : RETRIEVAL.minSimilarity;
 
   let queryEmbedding: number[];
   try {
@@ -107,8 +110,8 @@ export async function runRag(params: {
           `Write a concise answer with citations.`,
       },
     ],
-    temperature: 0.1,
-    max_tokens: 450,
+    temperature: LLM.temperature,
+    max_tokens: LLM.maxTokens,
   });
 
   return { ok: true, answer, sources: matches, model };
