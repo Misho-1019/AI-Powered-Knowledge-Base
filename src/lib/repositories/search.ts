@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { EMBEDDING_DIMENSIONS } from '@/db/schema'
+import { extractRows } from '@/lib/drizzle-utils'
 
 export type ChunkMatch = {
   id: string
@@ -73,15 +74,4 @@ function toVectorLiteral(embedding: number[]): string {
     throw new Error('Embedding contains non-finite values')
   }
   return `[${embedding.join(',')}]`
-}
-
-/**
- * `db.execute` returns different shapes across Drizzle drivers, so accept both
- * rather than depending on one.
- */
-function extractRows<T>(result: unknown): T[] {
-  if (Array.isArray(result)) return result as T[]
-  const maybe = result as { rows?: unknown } | null
-  if (maybe && Array.isArray(maybe.rows)) return maybe.rows as T[]
-  return []
 }

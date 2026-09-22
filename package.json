@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:smoke": "node --env-file=.env.local scripts/db-smoke.mjs",
+    "cleanup:orphans": "node --env-file=.env.local scripts/cleanup-orphans.mjs",
     "verify:repos": "tsx scripts/verify-repositories.ts"
   },
   "dependencies": {
@@ -21,7 +22,8 @@
     "next": "16.3.5",
     "pdfjs-dist": "^5.5.207",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

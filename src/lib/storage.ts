@@ -90,12 +90,15 @@ export type PresignedUpload = {
  * Going direct matters: Vercel caps serverless request bodies at ~4.5 MB, and
  * routing file bytes through an API route would silently break larger files.
  *
- * The content type is part of the signature, so the caller MUST send back the
- * exact `contentType` returned here.
+ * `contentLength` is signed into the URL, so R2 itself rejects an oversized
+ * upload rather than trusting the client's claim. The content type is part of
+ * the signature too, so the caller MUST send back the exact `contentType`
+ * returned here.
  */
 export async function presignUpload(params: {
   key: string
   contentType?: string
+  contentLength?: number
   expiresInSeconds?: number
 }): Promise<PresignedUpload> {
   const contentType = params.contentType?.trim() || DEFAULT_CONTENT_TYPE
@@ -104,6 +107,7 @@ export async function presignUpload(params: {
     Bucket: getBucket(),
     Key: params.key,
     ContentType: contentType,
+    ...(params.contentLength ? { ContentLength: params.contentLength } : {}),
   })
 
   const uploadUrl = await getSignedUrl(getClient(), command, {
@@ -142,6 +146,23 @@ export async function objectExists(key: string): Promise<boolean> {
     return true
   } catch {
     return false
+  }
+}
+
+export type ObjectInfo = { size: number; contentType: string | null }
+
+/** Returns object metadata, or null when the object does not exist. */
+export async function headObject(key: string): Promise<ObjectInfo | null> {
+  try {
+    const result = await getClient().send(
+      new HeadObjectCommand({ Bucket: getBucket(), Key: key }),
+    )
+    return {
+      size: Number(result.ContentLength ?? 0),
+      contentType: result.ContentType ?? null,
+    }
+  } catch {
+    return null
   }
 }
 

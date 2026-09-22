@@ -5,6 +5,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -90,6 +91,30 @@ export const documentChunks = pgTable(
       'hnsw',
       t.embedding.op('vector_cosine_ops'),
     ),
+  ],
+)
+
+/**
+ * Fixed-window rate limiting, kept in Postgres on purpose.
+ *
+ * An in-memory limiter is effectively useless on Vercel: every serverless
+ * instance holds its own map, so the effective limit is multiplied by the
+ * number of warm instances. A limiter that silently does not work is worse
+ * than none, and Postgres costs one cheap atomic upsert per limited request.
+ */
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    bucket: text('bucket').notNull(),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.bucket, t.windowStart] }),
+    index('rate_limits_window_idx').on(t.windowStart),
   ],
 )
 

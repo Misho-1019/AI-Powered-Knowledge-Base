@@ -1,8 +1,10 @@
 import { embedText } from "@/lib/ai/embeddings";
 import { requireUser } from "@/lib/auth/require-user";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { deleteChunksByDocument, insertChunks } from "@/lib/repositories/chunks";
 import { getDocument, setStatus } from "@/lib/repositories/documents";
 import { downloadObject } from "@/lib/storage";
+import { MAX_PDF_PAGES } from "@/lib/validation";
 import { NextResponse } from "next/server";
 
 import { writeFile, unlink } from "node:fs/promises";
@@ -63,6 +65,9 @@ export async function POST(
 
   const userId = auth.user.id;
 
+  const limited = await enforceRateLimit(userId, "process");
+  if (limited) return limited;
+
   // Ownership is enforced in the query: a document belonging to another user
   // is indistinguishable from one that does not exist.
   const doc = await getDocument(userId, id).catch((err) => {
@@ -95,10 +100,19 @@ export async function POST(
       try {
         const { stdout } = await execFileAsync(
           process.execPath,
-          [join(process.cwd(), "scripts", "extract-pdf-text.mjs"), tmpPath],
+          [
+            join(process.cwd(), "scripts", "extract-pdf-text.mjs"),
+            tmpPath,
+            String(MAX_PDF_PAGES),
+          ],
           { maxBuffer: 10 * 1024 * 1024 },
         );
         text = (stdout ?? "").toString();
+      } catch (err) {
+        // Surface the script's own message (e.g. its page-count refusal)
+        // instead of a generic exec failure.
+        const stderr = (err as { stderr?: string })?.stderr?.trim();
+        throw new Error(stderr || "Could not extract text from this PDF");
       } finally {
         await unlink(tmpPath).catch(() => {});
       }

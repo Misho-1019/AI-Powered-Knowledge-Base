@@ -1,7 +1,9 @@
 import { embedText } from "@/lib/ai/embeddings";
 import { requireUser } from "@/lib/auth/require-user";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { insertChunks } from "@/lib/repositories/chunks";
 import { createDocument, setStatus } from "@/lib/repositories/documents";
+import { ingestSchema, parseJsonBody } from "@/lib/validation";
 import { NextResponse } from "next/server";
 
 function chunkText(text: string, chunkSize = 1500, overlap = 300) {
@@ -36,42 +38,22 @@ function chunkText(text: string, chunkSize = 1500, overlap = 300) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => null);
-
-    if (!body || typeof body !== "object") {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
-    const { title, text, metadata } = body as {
-      title?: string;
-      text?: string;
-      metadata?: Record<string, unknown>;
-    };
-
-    if (!title || typeof title !== "string") {
-      return NextResponse.json(
-        { error: "Missing or invalid title" },
-        { status: 400 },
-      );
-    }
-
-    if (!text || typeof text !== "string") {
-      return NextResponse.json(
-        { error: "Missing or invalid text" },
-        { status: 400 },
-      );
-    }
-
     const auth = await requireUser();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const limited = await enforceRateLimit(auth.user.id, "ingest");
+    if (limited) return limited;
+
+    const parsed = await parseJsonBody(request, ingestSchema);
+    if (!parsed.ok) return parsed.response;
+
+    const { title, text, metadata } = parsed.data;
     const userId = auth.user.id;
 
-    // Guard before creating anything: whitespace-only input is truthy but
-    // chunks to nothing. Previously this produced a PROCESSED document with
-    // zero searchable chunks.
+    // Whitespace-only input is truthy but chunks to nothing; previously this
+    // produced a PROCESSED document with zero searchable chunks.
     const chunks = chunkText(text, 1500, 300);
     if (chunks.length === 0) {
       return NextResponse.json(
@@ -83,8 +65,7 @@ export async function POST(request: Request) {
     const doc = await createDocument({
       userId,
       title,
-      // Full text, not a 10k truncation — the previous cut-off silently
-      // discarded content that was nevertheless chunked and embedded.
+      // Full text, not a 10k truncation.
       content: text,
       status: "PROCESSING",
       metadata: metadata ?? {},

@@ -1,6 +1,8 @@
 import { embedText } from "@/lib/ai/embeddings";
 import { requireUser } from "@/lib/auth/require-user";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { matchChunks } from "@/lib/repositories/search";
+import { parseJsonBody, querySchema } from "@/lib/validation";
 import { NextResponse } from "next/server";
 
 /**
@@ -9,32 +11,25 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => null);
-    const query = body?.query;
-    const k = typeof body?.k === "number" ? body.k : 5;
-    const documentId =
-      typeof body?.documentId === "string" && body.documentId.length > 0
-        ? body.documentId
-        : null;
-
-    if (!query || typeof query !== "string") {
-      return NextResponse.json(
-        { error: "Missing or invalid query" },
-        { status: 400 },
-      );
-    }
-
     const auth = await requireUser();
     if (!auth.ok) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
+    const limited = await enforceRateLimit(auth.user.id, "query");
+    if (limited) return limited;
+
+    const parsed = await parseJsonBody(request, querySchema);
+    if (!parsed.ok) return parsed.response;
+
+    const { query, k, documentId } = parsed.data;
+
     const queryEmbedding = await embedText(query);
     const matches = await matchChunks({
       userId: auth.user.id,
       embedding: queryEmbedding,
-      limit: k,
-      documentId,
+      limit: k ?? 5,
+      documentId: documentId ?? null,
     });
 
     return NextResponse.json({ ok: true, matches });

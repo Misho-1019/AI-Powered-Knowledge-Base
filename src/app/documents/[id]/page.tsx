@@ -1,4 +1,5 @@
 import ProcessButton from "@/components/ProcessButton";
+import DeleteDocButton from "@/components/DeleteDocButton";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -163,6 +164,7 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
 
             <div className="flex items-center gap-2">
               <ProcessButton documentId={doc.id} />
+              <DeleteDocButton documentId={doc.id} />
               <Link href="/ask" className="sm:hidden">
                 <Button variant="secondary">Ask</Button>
               </Link>

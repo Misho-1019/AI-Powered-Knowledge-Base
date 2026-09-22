@@ -90,3 +90,20 @@ export async function countDocuments(userId: string): Promise<number> {
 
   return rows[0]?.n ?? 0
 }
+
+/**
+ * Deletes a document row. Chunks go with it via ON DELETE CASCADE.
+ * Returns false when no row matched, which is also how another user's
+ * document id reports as "not found".
+ */
+export async function deleteDocument(
+  userId: string,
+  documentId: string,
+): Promise<boolean> {
+  const rows = await db
+    .delete(documents)
+    .where(and(eq(documents.id, documentId), eq(documents.userId, userId)))
+    .returning({ id: documents.id })
+
+  return rows.length > 0
+}
