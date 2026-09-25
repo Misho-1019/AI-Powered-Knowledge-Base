@@ -86,10 +86,12 @@ export default function AskPage() {
     setDegraded(false);
     setNote("");
 
-    const payload: { query: string; k: number; documentId?: string } = {
-      query,
-      k: 5,
-    };
+    const payload: {
+      query: string;
+      k: number;
+      stream: boolean;
+      documentId?: string;
+    } = { query, k: 5, stream: true };
     if (docId) payload.documentId = docId;
 
     try {
@@ -100,18 +102,67 @@ export default function AskPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      setLoading(false);
-
       if (!res.ok) {
-        setError(data.error || "Request failed");
+        const data = await res.json().catch(() => ({}));
+        setLoading(false);
+        setError(data.error || `Request failed (${res.status})`);
         return;
       }
 
-      setAnswer(data.answer ?? "");
-      setSources(data.sources ?? []);
-      setDegraded(Boolean(data.degraded));
-      setNote(data.note ?? "");
+      if (!res.body) {
+        setLoading(false);
+        setError("Streaming is not supported in this browser.");
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulated = "";
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames are separated by a blank line.
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+
+        for (const frame of frames) {
+          const line = frame.trim();
+          if (!line.startsWith("data:")) continue;
+
+          let event: {
+            type?: string;
+            sources?: Source[];
+            text?: string;
+            note?: string;
+            degraded?: boolean;
+          };
+          try {
+            event = JSON.parse(line.slice(5).trim());
+          } catch {
+            continue; // partial or keepalive frame
+          }
+
+          if (event.type === "sources") {
+            setSources(event.sources ?? []);
+          } else if (event.type === "token" && event.text) {
+            accumulated += event.text;
+            setAnswer(accumulated);
+            // First token: swap the skeleton for the live answer.
+            setLoading(false);
+          } else if (event.type === "done") {
+            setDegraded(Boolean(event.degraded));
+            setNote(event.note ?? "");
+            setLoading(false);
+          }
+        }
+      }
+
+      setLoading(false);
     } catch (err) {
       setLoading(false);
       setError(err instanceof Error ? err.message : "Request failed");

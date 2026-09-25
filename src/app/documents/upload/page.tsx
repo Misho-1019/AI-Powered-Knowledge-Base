@@ -6,17 +6,31 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import NoticeCard from "@/components/ui/NoticeCard";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+type Stage = "idle" | "uploading" | "processing" | "done" | "error";
+
+const STAGE_LABEL: Record<Stage, string> = {
+  idle: "",
+  uploading: "Uploading file…",
+  processing: "Extracting text and generating embeddings…",
+  done: "Indexed and ready.",
+  error: "Something went wrong.",
+};
 
 export default function UploadDocumentPage() {
+  const router = useRouter();
   const { data: session } = authClient.useSession();
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [storagePath, setStoragePath] = useState("");
+  const [stage, setStage] = useState<Stage>("idle");
+  const [documentId, setDocumentId] = useState("");
 
   const upload = async () => {
     setMessage("");
-    setStoragePath("");
+    setDocumentId("");
+    setStage("idle");
 
     if (!file) {
       setMessage("Choose a file first.");
@@ -29,6 +43,7 @@ export default function UploadDocumentPage() {
     }
 
     setUploading(true);
+    setStage("uploading");
 
     try {
       // 1. Ask the server for a presigned PUT. The browser then uploads
@@ -48,6 +63,7 @@ export default function UploadDocumentPage() {
 
       if (!presignRes.ok || !presigned.ok) {
         setUploading(false);
+        setStage("error");
         setMessage(
           `Could not prepare the upload: ${presigned.error ?? presignRes.status}`,
         );
@@ -64,13 +80,12 @@ export default function UploadDocumentPage() {
 
       if (!putRes.ok) {
         setUploading(false);
+        setStage("error");
         setMessage(
           `Storage rejected the upload (${putRes.status}). If the browser console shows a CORS error, the bucket is missing its CORS rule.`,
         );
         return;
       }
-
-      setStoragePath(presigned.key);
 
       // 3. Record the document row.
       const docRes = await fetch("/api/documents", {
@@ -85,20 +100,50 @@ export default function UploadDocumentPage() {
       });
       const docData = await docRes.json();
 
-      setUploading(false);
-
       if (!docData.ok) {
+        setUploading(false);
+        setStage("error");
         setMessage(
           `Uploaded to storage, but the document record failed: ${docData.error ?? "unknown error"}`,
         );
         return;
       }
 
-      setMessage(
-        `Uploaded. Document created: ${docData.documentId}. Open it from Documents and click Process.`,
+      setDocumentId(docData.documentId);
+
+      // 4. Process immediately. Previously this was a manual step the user had
+      //    to discover, so uploading and then asking returned "nothing found" —
+      //    every component worked, but the experience was a dead end.
+      setStage("processing");
+      setMessage("Extracting text and generating embeddings…");
+
+      const processRes = await fetch(
+        `/api/documents/${docData.documentId}/process`,
+        { method: "POST", credentials: "include" },
       );
+      const processData = await processRes.json().catch(() => ({}));
+
+      setUploading(false);
+
+      if (!processRes.ok) {
+        setStage("error");
+        setMessage(
+          `Uploaded, but processing failed: ${processData.error ?? processRes.status}. You can retry from the document page.`,
+        );
+        return;
+      }
+
+      const count = Number(processData.chunkCount ?? 0);
+      setStage("done");
+      setMessage(
+        `Indexed ${count} chunk${count === 1 ? "" : "s"}. You can ask questions about it now.`,
+      );
+
+      // Show the result rather than leaving the user on the upload form.
+      router.push(`/documents/${docData.documentId}`);
     } catch (err) {
       setUploading(false);
+      setStage("error");
       setMessage(err instanceof Error ? err.message : "Upload failed");
     }
   };
@@ -109,14 +154,14 @@ export default function UploadDocumentPage() {
       <div className="space-y-1">
         <h1 className="text-lg font-semibold">Upload document</h1>
         <p className="text-sm text-[var(--muted)]">
-          Upload a file to store it in your knowledge base. After upload, process
-          it from the Documents page to extract text and generate embeddings.
+          Upload a file and we handle the rest: it is stored, text is extracted,
+          chunked, and embedded automatically so you can ask about it straight away.
         </p>
       </div>
 
       <NoticeCard
         title="Files upload straight to Cloudflare R2"
-        description="Your browser sends the file directly to object storage, so nothing passes through the app server. After uploading, open the document and click Process."
+        description="Your browser sends the file directly to object storage, so nothing passes through the app server — and larger files avoid the serverless request-body limit. Processing starts automatically when the upload finishes."
         actionHref="/documents"
         actionLabel="Go to documents →"
       />
@@ -213,7 +258,7 @@ export default function UploadDocumentPage() {
                   isLoading={uploading}
                   disabled={!file || uploading}
                 >
-                  Upload
+                  Upload &amp; process
                 </Button>
 
                 <Link
@@ -224,28 +269,71 @@ export default function UploadDocumentPage() {
                 </Link>
               </div>
 
-              <div className="text-xs text-[var(--muted)]">
-                {uploading ? "Uploading…" : " "}
+              <div
+                className={`flex items-center gap-2 text-xs ${
+                  stage === "error" ? "text-rose-700" : "text-[var(--muted)]"
+                }`}
+                aria-live="polite"
+              >
+                {uploading ? (
+                  <>
+                    <svg
+                      className="h-3.5 w-3.5 animate-spin"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    <span>{STAGE_LABEL[stage]}</span>
+                  </>
+                ) : null}
               </div>
             </div>
 
             {/* Status message */}
             {message ? (
-              <div className="rounded-xl border border-[var(--border)] bg-white p-4 text-sm">
-                <div className="font-medium">Status</div>
+              <div
+                className={`rounded-xl border p-4 text-sm ${
+                  stage === "error"
+                    ? "border-rose-200 bg-rose-50"
+                    : "border-[var(--border)] bg-white"
+                }`}
+              >
+                <div className="font-medium">
+                  {stage === "error" ? "Failed" : stage === "done" ? "Ready" : "Status"}
+                </div>
                 <div className="mt-1 text-[var(--muted)]">{message}</div>
               </div>
             ) : null}
 
-            {/* Storage path (debug-ish, but presented nicely) */}
-            {storagePath ? (
-              <div className="rounded-xl border border-[var(--border)] bg-white p-4">
-                <div className="text-xs font-semibold text-slate-700">
-                  Storage path
-                </div>
-                <div className="mt-2 break-all rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
-                  {storagePath}
-                </div>
+            {/* Once the document exists, send the user somewhere useful. */}
+            {documentId ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-white p-4 text-sm">
+                <Link
+                  href={`/documents/${documentId}`}
+                  className="font-medium text-[var(--brand-2)] hover:underline"
+                >
+                  View document →
+                </Link>
+                <Link
+                  href="/ask"
+                  className="font-medium text-[var(--brand-2)] hover:underline"
+                >
+                  Ask about it →
+                </Link>
               </div>
             ) : null}
           </div>
@@ -262,12 +350,12 @@ export default function UploadDocumentPage() {
           </div>
 
           <div className="rounded-xl border border-[var(--border)] bg-white p-4">
-            <div className="text-sm font-semibold">Recommended flow</div>
+            <div className="text-sm font-semibold">What happens automatically</div>
             <ol className="mt-2 list-decimal pl-5 text-sm text-[var(--muted)] space-y-1">
-              <li>Upload the file</li>
-              <li>Open it from Documents</li>
-              <li>Click Process</li>
-              <li>Go to Ask and query it</li>
+              <li>The file uploads straight to storage</li>
+              <li>Text is extracted and split into chunks</li>
+              <li>Each chunk is embedded for semantic search</li>
+              <li>You land on the document, ready to ask</li>
             </ol>
           </div>
 

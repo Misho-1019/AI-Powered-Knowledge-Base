@@ -159,17 +159,33 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
             <div className="text-sm text-[var(--muted)] leading-6">
               {doc.status === "PROCESSED"
                 ? "This document is processed and ready for search."
-                : "Process this document to extract text and generate embeddings."}
+                : doc.status === "FAILED"
+                  ? "Processing failed. Check the reason below, then retry."
+                  : doc.status === "PROCESSING"
+                    ? "This document is currently processing."
+                    : "Process this document to extract text and generate embeddings."}
             </div>
 
             <div className="flex items-center gap-2">
-              <ProcessButton documentId={doc.id} />
+              <ProcessButton documentId={doc.id} status={doc.status} />
               <DeleteDocButton documentId={doc.id} />
               <Link href="/ask" className="sm:hidden">
                 <Button variant="secondary">Ask</Button>
               </Link>
             </div>
           </div>
+
+          {/* Failure reason, when there is one */}
+          {doc.status === "FAILED" && doc.error ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+              <div className="text-xs font-semibold text-rose-800">
+                Why processing failed
+              </div>
+              <div className="mt-1 break-words text-sm text-rose-700">
+                {doc.error}
+              </div>
+            </div>
+          ) : null}
 
           {/* Metadata (collapsible, nicer) */}
           <details className="rounded-xl border border-[var(--border)] bg-white p-4">

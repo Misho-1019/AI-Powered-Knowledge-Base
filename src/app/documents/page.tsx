@@ -146,7 +146,7 @@ export default async function DocumentsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       {/* Render ProcessDocButton directly, no wrapper with onClick */}
                       {doc.status !== "PROCESSED" && (
-                        <ProcessDocButton documentId={doc.id} />
+                        <ProcessDocButton documentId={doc.id} status={doc.status} />
                       )}
               
                       <span className="text-sm font-medium text-[var(--brand-2)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">

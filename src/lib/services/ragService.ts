@@ -1,5 +1,5 @@
 import { embedText } from "../ai/embeddings";
-import { chatComplete } from "../ai/llm";
+import { chatComplete, chatCompleteStream } from "../ai/llm";
 import { LLM, RETRIEVAL } from "../config";
 import { matchChunks, type ChunkMatch } from "../repositories/search";
 
@@ -18,6 +18,11 @@ export type RagResult =
     }
   | { ok: false; error: string };
 
+export type RagStreamEvent =
+  | { type: "sources"; sources: RagMatch[] }
+  | { type: "token"; text: string }
+  | { type: "done"; model?: string; note?: string; degraded?: boolean };
+
 const NOT_IN_SOURCES =
   "I couldn't find that in your documents. Try rephrasing, or add a document that covers it.";
 
@@ -28,19 +33,33 @@ const WEAK_EVIDENCE =
   "I couldn't find enough evidence in your documents to answer that confidently. " +
   "Try rephrasing your question or add more notes about that topic.";
 
+const GENERATION_UNAVAILABLE =
+  "Answer generation is unavailable right now. The retrieved sources are shown below.";
+
+export type RagParams = {
+  userId: string;
+  query: string;
+  k?: number;
+  minSimilarity?: number;
+  documentId?: string;
+};
+
+type Retrieval =
+  | { kind: "error"; error: string }
+  | { kind: "respond"; message: string; sources: RagMatch[]; note?: string }
+  | { kind: "generate"; matches: RagMatch[] };
+
 /**
  * Sources are numbered and delimited so the model can cite them as [1], [2]
  * instead of emitting raw identifiers, and so document text cannot be mistaken
  * for instructions.
  */
 function buildContext(matches: RagMatch[]) {
-  const selected = matches.slice(0, RETRIEVAL.contextChunks);
-
-  return selected
+  return matches
+    .slice(0, RETRIEVAL.contextChunks)
     .map((m, index) => {
-      const id = index + 1;
       const title = m.documentTitle.replace(/"/g, "'");
-      return `<source id="${id}" title="${title}" chunk="${m.chunkIndex}">\n${m.textChunk}\n</source>`;
+      return `<source id="${index + 1}" title="${title}" chunk="${m.chunkIndex}">\n${m.textChunk}\n</source>`;
     })
     .join("\n\n");
 }
@@ -56,13 +75,22 @@ function buildSystemPrompt(): string {
   ].join(" ");
 }
 
-export async function runRag(params: {
-  userId: string;
-  query: string;
-  k?: number;
-  minSimilarity?: number;
-  documentId?: string;
-}): Promise<RagResult> {
+function buildMessages(params: RagParams, matches: RagMatch[]) {
+  return [
+    { role: "system" as const, content: buildSystemPrompt() },
+    {
+      role: "user" as const,
+      content: `Question: ${params.query}\n\nSources:\n\n${buildContext(matches)}`,
+    },
+  ];
+}
+
+/**
+ * Shared retrieval: embed, hybrid search, and decide whether the sources are
+ * good enough to answer from at all. Both the JSON and streaming paths use this
+ * so their behaviour cannot drift apart.
+ */
+async function retrieve(params: RagParams): Promise<Retrieval> {
   const k = typeof params.k === "number" ? params.k : RETRIEVAL.topK;
   const minSimilarity =
     typeof params.minSimilarity === "number"
@@ -74,7 +102,7 @@ export async function runRag(params: {
     queryEmbedding = await embedText(params.query);
   } catch (err) {
     console.error("[rag] embedding failed:", err);
-    return { ok: false, error: "Could not embed the question" };
+    return { kind: "error", error: "Could not embed the question" };
   }
 
   let matches: RagMatch[];
@@ -89,13 +117,13 @@ export async function runRag(params: {
     });
   } catch (err) {
     console.error("[rag] search failed:", err);
-    return { ok: false, error: "Search failed" };
+    return { kind: "error", error: "Search failed" };
   }
 
   if (matches.length === 0) {
     return {
-      ok: true,
-      answer: NO_MATCHES,
+      kind: "respond",
+      message: NO_MATCHES,
       sources: [],
       note: "No matches returned from hybrid search.",
     };
@@ -114,54 +142,148 @@ export async function runRag(params: {
 
   if (!hasLexicalHit && bestSimilarity < minSimilarity) {
     return {
-      ok: true,
-      answer: WEAK_EVIDENCE,
+      kind: "respond",
+      message: WEAK_EVIDENCE,
       sources: matches.slice(0, 3),
       note: `No lexical hit and best similarity ${bestSimilarity.toFixed(3)} below threshold ${minSimilarity}.`,
     };
   }
 
-  const context = buildContext(matches);
-  const system = buildSystemPrompt();
+  return { kind: "generate", matches };
+}
 
-  let answer: string;
-  let model: string;
+/** Non-streaming answer path. */
+export async function runRag(params: RagParams): Promise<RagResult> {
+  const retrieval = await retrieve(params);
+
+  if (retrieval.kind === "error") {
+    return { ok: false, error: retrieval.error };
+  }
+
+  if (retrieval.kind === "respond") {
+    return {
+      ok: true,
+      answer: retrieval.message,
+      sources: retrieval.sources,
+      note: retrieval.note,
+    };
+  }
 
   try {
     const completion = await chatComplete({
-      messages: [
-        { role: "system", content: system },
-        {
-          role: "user",
-          content: `Question: ${params.query}\n\nSources:\n\n${context}`,
-        },
-      ],
+      messages: buildMessages(params, retrieval.matches),
     });
-    answer = completion.text;
-    model = completion.model;
+
+    const trimmed = completion.text.trim();
+
+    if (trimmed.toUpperCase().includes(LLM.notInSourcesSentinel)) {
+      return {
+        ok: true,
+        answer: NOT_IN_SOURCES,
+        sources: retrieval.matches,
+        model: completion.model,
+        note: "Model reported the answer is not present in the retrieved sources.",
+      };
+    }
+
+    return {
+      ok: true,
+      answer: trimmed,
+      sources: retrieval.matches,
+      model: completion.model,
+    };
   } catch (err) {
     // Retrieval succeeded. A failed generation must not throw that away.
     console.error("[rag] generation failed, returning sources only:", err);
     return {
       ok: true,
       answer: null,
-      sources: matches,
+      sources: retrieval.matches,
       degraded: true,
-      note: "Answer generation is unavailable right now. The retrieved sources are shown below.",
+      note: GENERATION_UNAVAILABLE,
     };
   }
+}
 
-  const trimmed = answer.trim();
+/**
+ * Streaming answer path.
+ *
+ * The abstention sentinel is handled by holding back the first few characters
+ * until we can tell whether the model is about to say "not in sources". Without
+ * that, the raw sentinel token would flash on screen before being replaced.
+ */
+export async function* runRagStream(
+  params: RagParams,
+): AsyncGenerator<RagStreamEvent> {
+  const retrieval = await retrieve(params);
 
-  if (trimmed.includes(LLM.notInSourcesSentinel)) {
-    return {
-      ok: true,
-      answer: NOT_IN_SOURCES,
-      sources: matches,
-      model,
-      note: "Model reported the answer is not present in the retrieved sources.",
-    };
+  if (retrieval.kind === "error") {
+    yield { type: "sources", sources: [] };
+    yield { type: "done", degraded: true, note: retrieval.error };
+    return;
   }
 
-  return { ok: true, answer: trimmed, sources: matches, model };
+  if (retrieval.kind === "respond") {
+    yield { type: "sources", sources: retrieval.sources };
+    yield { type: "token", text: retrieval.message };
+    yield { type: "done", note: retrieval.note };
+    return;
+  }
+
+  yield { type: "sources", sources: retrieval.matches };
+
+  const sentinel = LLM.notInSourcesSentinel.toUpperCase();
+  let pending = "";
+  let flushed = false;
+
+  try {
+    for await (const delta of chatCompleteStream({
+      messages: buildMessages(params, retrieval.matches),
+    })) {
+      if (flushed) {
+        yield { type: "token", text: delta };
+        continue;
+      }
+
+      pending += delta;
+
+      // Enough characters to rule the sentinel in or out.
+      if (pending.length >= sentinel.length) {
+        if (pending.trim().toUpperCase().startsWith(sentinel)) {
+          yield { type: "token", text: NOT_IN_SOURCES };
+          yield {
+            type: "done",
+            note: "Model reported the answer is not present in the retrieved sources.",
+          };
+          return;
+        }
+        flushed = true;
+        yield { type: "token", text: pending };
+      }
+    }
+
+    // Stream ended before we had enough characters to decide.
+    if (!flushed) {
+      if (pending.trim().toUpperCase().includes(sentinel)) {
+        yield { type: "token", text: NOT_IN_SOURCES };
+        yield {
+          type: "done",
+          note: "Model reported the answer is not present in the retrieved sources.",
+        };
+        return;
+      }
+      if (pending) yield { type: "token", text: pending };
+    }
+
+    yield { type: "done" };
+  } catch (err) {
+    console.error("[rag] stream failed:", err);
+    yield {
+      type: "done",
+      degraded: true,
+      note: flushed
+        ? "The response was interrupted. The retrieved sources are shown below."
+        : GENERATION_UNAVAILABLE,
+    };
+  }
 }

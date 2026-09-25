@@ -4,7 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 
-export default function ProcessDocButton({ documentId }: { documentId: string }) {
+export default function ProcessDocButton({
+  documentId,
+  status,
+}: {
+  documentId: string;
+  /** Drives the label: a failed document is retried, not "processed". */
+  status?: "PENDING" | "PROCESSING" | "PROCESSED" | "FAILED";
+}) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [isError, setIsError] = useState(false);
@@ -38,7 +45,8 @@ export default function ProcessDocButton({ documentId }: { documentId: string })
         return;
       }
 
-      setMsg(`Done (${data.chunkCount} chunks)`);
+      const count = Number(data.chunkCount ?? 0);
+      setMsg(`Done (${count} chunk${count === 1 ? "" : "s"})`);
 
       // refresh server-rendered documents list without full page reload
       router.refresh();
@@ -48,6 +56,8 @@ export default function ProcessDocButton({ documentId }: { documentId: string })
       setMsg(err instanceof Error ? err.message : "Failed");
     }
   };
+
+  const label = status === "FAILED" ? "Retry" : "Process";
 
   return (
     <div
@@ -59,10 +69,10 @@ export default function ProcessDocButton({ documentId }: { documentId: string })
         type="button"
         onClick={run}
         isLoading={loading}
-        disabled={loading}
+        disabled={loading || status === "PROCESSING"}
         className="h-9 px-3 py-2"
       >
-        Process
+        {label}
       </Button>
 
       {msg ? (

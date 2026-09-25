@@ -48,6 +48,8 @@ export const askSchema = z.object({
   query: z.string().trim().min(1).max(MAX_QUERY_LENGTH),
   k: z.number().int().min(1).max(MAX_TOP_K).optional(),
   documentId: z.uuid().optional(),
+  /** When true, `/api/ask` responds with Server-Sent Events instead of JSON. */
+  stream: z.boolean().optional(),
 })
 
 export const querySchema = askSchema
