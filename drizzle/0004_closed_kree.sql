@@ -1,0 +1,2 @@
+ALTER TABLE "document_chunks" ADD COLUMN "text_search" "tsvector" GENERATED ALWAYS AS (to_tsvector('english', "text_chunk")) STORED;--> statement-breakpoint
+CREATE INDEX "document_chunks_text_search_idx" ON "document_chunks" USING gin ("text_search");

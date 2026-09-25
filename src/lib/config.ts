@@ -67,8 +67,28 @@ export const EMBEDDING = {
 } as const
 
 export const LLM = {
-  maxTokens: 450,
+  /**
+   * Any OpenAI-compatible chat-completions base URL. Overridable per
+   * environment, so switching provider is configuration rather than a code
+   * change. HuggingFace speaks the same shape.
+   */
+  baseUrl: 'https://router.huggingface.co/v1',
+  model: 'meta-llama/Llama-3.1-8B-Instruct',
+  /**
+   * Raised from 450, which truncated answers mid-sentence. Deliberately paired
+   * with an explicit brevity instruction — lifting the cap on its own would
+   * only let a rambling answer ramble longer.
+   */
+  maxTokens: 700,
   temperature: 0.1,
+  timeoutMs: 30_000,
+  /**
+   * The model replies with exactly this token when the sources do not contain
+   * the answer. Detected server-side and replaced with a friendly message, so
+   * abstention is deterministic instead of depending on prose that happens to
+   * say "I don't know".
+   */
+  notInSourcesSentinel: 'NOT_IN_SOURCES',
 } as const
 
 export const LIMITS = {

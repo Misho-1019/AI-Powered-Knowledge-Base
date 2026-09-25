@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  customType,
   index,
   integer,
   jsonb,
@@ -13,6 +14,19 @@ import {
   vector,
 } from 'drizzle-orm/pg-core'
 import { user } from './auth-schema'
+
+/**
+ * Postgres `tsvector` is not built into Drizzle, so we declare it.
+ *
+ * Needed for the lexical half of hybrid search: embeddings blur rare literal
+ * tokens like "day 12" into the surrounding day-N sentences, while a full-text
+ * index matches them exactly.
+ */
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return 'tsvector'
+  },
+})
 
 /**
  * Lifecycle of a document through the ingestion pipeline.
@@ -79,6 +93,14 @@ export const documentChunks = pgTable(
     chunkIndex: integer('chunk_index').notNull(),
     textChunk: text('text_chunk').notNull(),
     embedding: vector('embedding', { dimensions: EMBEDDING_DIMENSIONS }).notNull(),
+    /**
+     * Generated full-text index over the chunk. Kept in the database rather
+     * than computed in the app so it can never drift out of sync with
+     * `text_chunk`.
+     */
+    textSearch: tsvector('text_search').generatedAlwaysAs(
+      sql`to_tsvector('english', "text_chunk")`,
+    ),
     tokenCount: integer('token_count'),
     /** Offset of this chunk in the source text, for citation highlighting. */
     charStart: integer('char_start'),
@@ -93,6 +115,7 @@ export const documentChunks = pgTable(
       'hnsw',
       t.embedding.op('vector_cosine_ops'),
     ),
+    index('document_chunks_text_search_idx').using('gin', t.textSearch),
   ],
 )
 
