@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/fetch-ort-binary.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -27,7 +27,7 @@
     "better-auth": "^1.7.5",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.5",
-    "onnxruntime-node": "^1.30.0",
+    "onnxruntime-node": "1.30.0",
     "pdfjs-dist": "^5.5.207",
     "react": "19.2.3",
     "react-dom": "19.2.3",
