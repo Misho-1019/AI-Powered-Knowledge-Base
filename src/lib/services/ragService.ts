@@ -50,6 +50,15 @@ type Retrieval =
   | { kind: "generate"; matches: RagMatch[] };
 
 /**
+ * Models sometimes emit citations in non-ASCII brackets (notably `【1】`).
+ * The UI only links `[n]`, so a correct answer would render as plain text.
+ * Normalising here keeps every model honest without touching prompts.
+ */
+function normalizeCitations(text: string): string {
+  return text.replace(/【(\d+)】/g, '[$1]').replace(/［(\d+)］/g, '[$1]')
+}
+
+/**
  * Sources are numbered and delimited so the model can cite them as [1], [2]
  * instead of emitting raw identifiers, and so document text cannot be mistaken
  * for instructions.
@@ -174,7 +183,7 @@ export async function runRag(params: RagParams): Promise<RagResult> {
       messages: buildMessages(params, retrieval.matches),
     });
 
-    const trimmed = completion.text.trim();
+    const trimmed = normalizeCitations(completion.text.trim());
 
     if (trimmed.toUpperCase().includes(LLM.notInSourcesSentinel)) {
       return {
@@ -241,7 +250,7 @@ export async function* runRagStream(
       messages: buildMessages(params, retrieval.matches),
     })) {
       if (flushed) {
-        yield { type: "token", text: delta };
+        yield { type: "token", text: normalizeCitations(delta) };
         continue;
       }
 
@@ -258,7 +267,7 @@ export async function* runRagStream(
           return;
         }
         flushed = true;
-        yield { type: "token", text: pending };
+        yield { type: "token", text: normalizeCitations(pending) };
       }
     }
 
@@ -272,7 +281,7 @@ export async function* runRagStream(
         };
         return;
       }
-      if (pending) yield { type: "token", text: pending };
+      if (pending) yield { type: "token", text: normalizeCitations(pending) };
     }
 
     yield { type: "done" };

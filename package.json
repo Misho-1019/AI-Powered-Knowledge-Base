@@ -13,6 +13,7 @@
     "verify:repos": "tsx scripts/verify-repositories.ts",
     "verify:reliability": "tsx scripts/verify-reliability.ts",
     "eval": "tsx scripts/eval.ts",
+    "eval:demo": "tsx scripts/eval-demo.ts",
     "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
