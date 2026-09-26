@@ -24,20 +24,16 @@ import { execFileSync } from 'node:child_process'
 const PKG = 'onnxruntime-node'
 const VERSION = '1.30.0'
 
-const BINDING_REL = path.join(
-  'bin',
-  'napi-v6',
-  'linux',
-  'x64',
-  'onnxruntime_binding.node',
-)
-const NATIVE_LIB_REL = path.join(
-  'bin',
-  'napi-v6',
-  'linux',
-  'x64',
-  'libonnxruntime.so.1',
-)
+/** Binding path for THIS host (Vercel builds and runs linux/x64). */
+function bindingRel() {
+  return path.join(
+    'bin',
+    'napi-v6',
+    os.platform(),
+    os.arch(),
+    'onnxruntime_binding.node',
+  )
+}
 
 function destDir() {
   if (process.env.ORT_FETCH_DEST) {
@@ -47,10 +43,7 @@ function destDir() {
 }
 
 function present(dir) {
-  return (
-    fs.existsSync(path.join(dir, BINDING_REL)) &&
-    fs.existsSync(path.join(dir, NATIVE_LIB_REL))
-  )
+  return fs.existsSync(path.join(dir, bindingRel()))
 }
 
 /**
@@ -112,6 +105,30 @@ function main() {
 
     const pkgDir = path.join(tmp, 'package')
     fs.cpSync(pkgDir, dest, { recursive: true })
+
+    // Slim to this host's platform. The tarball ships every OS/arch and a
+    // serverless function only ever needs its own — the rest is dead weight
+    // against the deploy size cap. (Local dev skips this whole path because
+    // its binding is already present.)
+    const napiDir = path.join(dest, 'bin', 'napi-v6')
+    for (const platform of fs.readdirSync(napiDir, { withFileTypes: true })) {
+      if (!platform.isDirectory()) continue
+      const platformDir = path.join(napiDir, platform.name)
+      if (platform.name !== os.platform()) {
+        fs.rmSync(platformDir, { recursive: true, force: true })
+        continue
+      }
+      for (const arch of fs.readdirSync(platformDir, {
+        withFileTypes: true,
+      })) {
+        if (arch.isDirectory() && arch.name !== os.arch()) {
+          fs.rmSync(path.join(platformDir, arch.name), {
+            recursive: true,
+            force: true,
+          })
+        }
+      }
+    }
 
     if (!present(dest)) {
       throw new Error('binding still missing after extract — aborting build')

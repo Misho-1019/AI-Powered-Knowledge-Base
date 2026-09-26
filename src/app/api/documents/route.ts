@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { logger, requestIdFrom } from "@/lib/log";
 import { requireUser } from "@/lib/auth/require-user";
-import { createDocument } from "@/lib/repositories/documents";
+import { createDocument, listDocuments } from "@/lib/repositories/documents";
 import { deleteObject, headObject } from "@/lib/storage";
 import {
   MAX_UPLOAD_BYTES,
@@ -19,6 +19,43 @@ function ownsStoragePath(userId: string, storagePath: string): boolean {
   if (storagePath.includes("..")) return false;
   if (storagePath.startsWith("/")) return false;
   return true;
+}
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Lists the caller's documents with their suggested questions embedded.
+ * Replaces the old `/api/documents/list` endpoint (same data, one fewer
+ * function) — the Ask page builds both its scope dropdown and its chips
+ * from this single response.
+ */
+export async function GET(request: Request) {
+  const log = logger(requestIdFrom(request));
+
+  const auth = await requireUser();
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  try {
+    const documents = await listDocuments(auth.user.id);
+
+    return NextResponse.json({
+      ok: true,
+      documents: documents.map((d) => ({
+        id: d.id,
+        title: d.title,
+        status: d.status,
+        suggestions: d.suggestions,
+      })),
+    });
+  } catch (err) {
+    log.error("[documents] list failed", { error: err });
+    return NextResponse.json(
+      { error: "Could not load documents" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: Request) {

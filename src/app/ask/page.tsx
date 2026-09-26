@@ -9,7 +9,12 @@ import Skeleton from "@/components/ui/Skeleton";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-type DocOption = { id: string; title: string; status: string };
+type DocOption = {
+  id: string;
+  title: string;
+  status: string;
+  suggestions: string[];
+};
 
 type Source = {
   id: string;
@@ -65,47 +70,62 @@ export default function AskPage() {
 
   const [copied, setCopied] = useState(false);
 
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-
+  // Documents arrive with their suggested questions embedded, so one fetch
+  // feeds both the scope dropdown and the chips.
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/documents/list", { credentials: "include" });
+      const res = await fetch("/api/documents", { credentials: "include" });
       const data = await res.json();
 
       if (res.ok && data?.ok) {
-        setDocs(data.documents ?? []);
+        setDocs(
+          Array.isArray(data.documents)
+            ? data.documents.map((d: DocOption) => ({
+                id: d.id,
+                title: d.title,
+                status: d.status,
+                suggestions: Array.isArray(d.suggestions)
+                  ? d.suggestions.filter(
+                      (s): s is string => typeof s === "string",
+                    )
+                  : [],
+              }))
+            : [],
+        );
       }
     })();
   }, []);
 
-  // Suggested questions for the current scope. A document's own questions show
-  // when it is scoped; a mix across documents shows for "All documents".
-  useEffect(() => {
-    let cancelled = false;
+  // Chips for the current scope: the scoped document's questions, or a
+  // round-robin mix across documents for "All documents".
+  const visibleSuggestions: string[] = (() => {
+    if (docId) {
+      return (docs.find((d) => d.id === docId)?.suggestions ?? []).slice(0, 6);
+    }
 
-    (async () => {
-      const url = docId
-        ? `/api/suggestions?documentId=${encodeURIComponent(docId)}`
-        : "/api/suggestions";
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const lists = docs.map((d) => d.suggestions);
 
-      try {
-        const res = await fetch(url, { credentials: "include" });
-        const data = await res.json();
+    for (let index = 0; ; index++) {
+      let advanced = false;
 
-        if (!cancelled && res.ok && data?.ok) {
-          setSuggestions(
-            Array.isArray(data.questions) ? data.questions : [],
-          );
-        }
-      } catch {
-        if (!cancelled) setSuggestions([]);
+      for (const list of lists) {
+        const candidate = list[index];
+        if (typeof candidate !== "string") continue;
+
+        advanced = true;
+        const key = candidate.toLowerCase();
+        if (seen.has(key)) continue;
+
+        seen.add(key);
+        out.push(candidate);
+        if (out.length >= 6) return out;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [docId]);
+      if (!advanced) return out;
+    }
+  })();
 
   const runAsk = async (override?: string) => {
     // A suggestion click passes its text directly; the typed path uses state.
@@ -213,7 +233,9 @@ export default function AskPage() {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      const el = document.getElementById("ask-input") as HTMLTextAreaElement | null;
+      const el = document.getElementById(
+        "ask-input",
+      ) as HTMLTextAreaElement | null;
       if (el) el.focus();
     }, 50);
     return () => clearTimeout(t);
@@ -224,7 +246,8 @@ export default function AskPage() {
       <div className="space-y-1">
         <h1 className="text-lg font-semibold">Ask</h1>
         <p className="text-sm text-[var(--muted)]">
-          Ask questions and get answers grounded in your documents, with sources.
+          Ask questions and get answers grounded in your documents, with
+          sources.
         </p>
       </div>
 
@@ -299,7 +322,11 @@ export default function AskPage() {
             </div>
 
             {error ? (
-              <NoticeCard title="Request failed" description={error} variant="error" />
+              <NoticeCard
+                title="Request failed"
+                description={error}
+                variant="error"
+              />
             ) : null}
           </div>
         </Card>
@@ -345,7 +372,9 @@ export default function AskPage() {
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-5/6" />
                   <Skeleton className="h-4 w-3/4" />
-                  <div className="pt-2 text-xs text-[var(--muted)]">Thinking…</div>
+                  <div className="pt-2 text-xs text-[var(--muted)]">
+                    Thinking…
+                  </div>
                 </div>
               ) : degraded ? (
                 <>
@@ -357,14 +386,18 @@ export default function AskPage() {
                     }
                     variant="error"
                   />
-                  {sources.length > 0 ? <SourcesPanel sources={sources} /> : null}
+                  {sources.length > 0 ? (
+                    <SourcesPanel sources={sources} />
+                  ) : null}
                 </>
               ) : answer ? (
                 <>
                   <p className="whitespace-pre-wrap text-sm leading-6 animate-[fadeIn_0.25s_ease-out]">
                     {renderAnswer(answer, sources)}
                   </p>
-                  {sources.length > 0 ? <SourcesPanel sources={sources} /> : null}
+                  {sources.length > 0 ? (
+                    <SourcesPanel sources={sources} />
+                  ) : null}
                 </>
               ) : (
                 <div className="space-y-4">
@@ -380,13 +413,13 @@ export default function AskPage() {
                   </div>
 
                   {/* One click fills the question and submits it. */}
-                  {suggestions.length > 0 ? (
+                  {visibleSuggestions.length > 0 ? (
                     <div>
                       <div className="mb-2 text-xs font-semibold text-slate-700">
                         Try one of these
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {suggestions.map((suggestion) => (
+                        {visibleSuggestions.map((suggestion) => (
                           <button
                             key={suggestion}
                             type="button"

@@ -15,23 +15,34 @@ export type DocumentSummary = {
   title: string
   status: DocumentStatus
   createdAt: Date
+  /** Curated or generated questions, for the Ask page. Empty when none. */
+  suggestions: string[]
 }
 
 export async function listDocuments(
   userId: string,
   limit = 100,
 ): Promise<DocumentSummary[]> {
-  return db
+  const rows = await db
     .select({
       id: documents.id,
       title: documents.title,
       status: documents.status,
       createdAt: documents.createdAt,
+      metadata: documents.metadata,
     })
     .from(documents)
     .where(eq(documents.userId, userId))
     .orderBy(desc(documents.createdAt))
     .limit(limit)
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    status: row.status,
+    createdAt: row.createdAt,
+    suggestions: questionsFromMetadata(row.metadata),
+  }))
 }
 
 export async function getDocument(
@@ -82,7 +93,8 @@ export async function setStatus(
     .where(and(eq(documents.id, documentId), eq(documents.userId, userId)))
 }
 
-export async function countDocuments(userId: string): Promise<number> {  const rows = await db
+export async function countDocuments(userId: string): Promise<number> {
+  const rows = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(documents)
     .where(eq(documents.userId, userId))
