@@ -65,6 +65,8 @@ export default function AskPage() {
 
   const [copied, setCopied] = useState(false);
 
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
   useEffect(() => {
     (async () => {
       const res = await fetch("/api/documents/list", { credentials: "include" });
@@ -76,8 +78,41 @@ export default function AskPage() {
     })();
   }, []);
 
-  const runAsk = async () => {
-    if (!query.trim()) return;
+  // Suggested questions for the current scope. A document's own questions show
+  // when it is scoped; a mix across documents shows for "All documents".
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const url = docId
+        ? `/api/suggestions?documentId=${encodeURIComponent(docId)}`
+        : "/api/suggestions";
+
+      try {
+        const res = await fetch(url, { credentials: "include" });
+        const data = await res.json();
+
+        if (!cancelled && res.ok && data?.ok) {
+          setSuggestions(
+            Array.isArray(data.questions) ? data.questions : [],
+          );
+        }
+      } catch {
+        if (!cancelled) setSuggestions([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [docId]);
+
+  const runAsk = async (override?: string) => {
+    // A suggestion click passes its text directly; the typed path uses state.
+    // In both cases the input mirrors what was actually asked.
+    const value = (override ?? query).trim();
+    if (!value) return;
+    if (override !== undefined) setQuery(override);
 
     setLoading(true);
     setError("");
@@ -91,7 +126,7 @@ export default function AskPage() {
       k: number;
       stream: boolean;
       documentId?: string;
-    } = { query, k: 5, stream: true };
+    } = { query: value, k: 5, stream: true };
     if (docId) payload.documentId = docId;
 
     try {
@@ -239,7 +274,11 @@ export default function AskPage() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Button onClick={runAsk} isLoading={loading} disabled={loading || !query.trim()}>
+              <Button
+                onClick={() => runAsk()}
+                isLoading={loading}
+                disabled={loading || !query.trim()}
+              >
                 Ask
               </Button>
 
@@ -328,15 +367,39 @@ export default function AskPage() {
                   {sources.length > 0 ? <SourcesPanel sources={sources} /> : null}
                 </>
               ) : (
-                <div className="text-sm text-[var(--muted)]">
-                  <EmptyState
-                    title="Ask a question"
-                    subtitle="Type a question on the left and press Ask to retrieve answers from your documents."
-                    ctaLabel="Read docs"
-                    ctaHref="/documents"
-                    icon={<span className="text-lg">❓</span>}
-                    className="py-8"
-                  />
+                <div className="space-y-4">
+                  <div className="text-sm text-[var(--muted)]">
+                    <EmptyState
+                      title="Ask a question"
+                      subtitle="Type a question on the left and press Ask to retrieve answers from your documents."
+                      ctaLabel="Read docs"
+                      ctaHref="/documents"
+                      icon={<span className="text-lg">❓</span>}
+                      className="py-8"
+                    />
+                  </div>
+
+                  {/* One click fills the question and submits it. */}
+                  {suggestions.length > 0 ? (
+                    <div>
+                      <div className="mb-2 text-xs font-semibold text-slate-700">
+                        Try one of these
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            disabled={loading}
+                            onClick={() => runAsk(suggestion)}
+                            className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-2)]/30"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>

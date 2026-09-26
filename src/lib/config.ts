@@ -91,8 +91,28 @@ export const LLM = {
   notInSourcesSentinel: 'NOT_IN_SOURCES',
 } as const
 
-export const LIMITS = {
-  maxTitleLength: 200,
+export const SUGGESTIONS = {
+  /**
+   * How many suggested questions to keep per document.
+   *
+   * The model is asked for a couple more than this, because retrieval
+   * verification drops the ones the document cannot actually answer — and a
+   * visible "suggested question" that retrieves nothing would be worse than
+   * showing fewer.
+   */
+  keep: 4,
+  /** The model is asked for this many before verification. */
+  generate: 6,
+  /** Cap on how much document text is sent to the model. */
+  maxExcerptChars: 4_000,
+  maxExcerptChunks: 6,
+  minQuestionChars: 12,
+  maxQuestionChars: 160,
+  maxTokens: 320,
+  temperature: 0.3,
+} as const
+
+export const LIMITS = {  maxTitleLength: 200,
   maxTextLength: 200_000,
   maxQueryLength: 2_000,
   maxUploadBytes: 5 * 1024 * 1024,
@@ -102,3 +122,28 @@ export const LIMITS = {
 } as const
 
 export const ALLOWED_UPLOAD_EXTENSIONS = ['pdf', 'txt', 'md'] as const
+
+export const SANDBOX = {
+  /**
+   * Throwaway demo accounts are recognised by this email prefix. The
+   * housekeeping job deletes them (and everything cascading from them) once
+   * they outlive `ttlHours`.
+   */
+  emailPrefix: 'sandbox+',
+  /** Creation cap per rolling hour, counted globally — the only abuse guard an
+   *  unauthenticated endpoint can afford. */
+  maxPerHour: 20,
+  /** Stale sandboxes are removed after this long. */
+  ttlHours: 24,
+} as const
+
+export const HOUSEKEEPING = {
+  /**
+   * R2 objects without a document row are only deleted once they are older
+   * than this. The presign → PUT → create-row window means a young "orphan"
+   * is usually an upload still in flight, not garbage.
+   */
+  orphanMinAgeMinutes: 60,
+  /** Rate-limit windows older than this are pruned. */
+  rateLimitRetentionDays: 1,
+} as const

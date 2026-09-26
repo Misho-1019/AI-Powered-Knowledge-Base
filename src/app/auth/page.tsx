@@ -3,6 +3,7 @@
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
+import TryDemoButton from "@/components/TryDemoButton";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react"
@@ -159,6 +160,15 @@ export default function AuthPage() {
                 Sign Out
               </Button>
             </div>
+
+            {/* No-commitment entry point for visitors. */}
+            <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+              <span className="h-px flex-1 bg-[var(--border)]" aria-hidden="true" />
+              <span>or explore without an account</span>
+              <span className="h-px flex-1 bg-[var(--border)]" aria-hidden="true" />
+            </div>
+
+            <TryDemoButton label="Try the demo" variant="secondary" />
 
             {/* Message */}
             {message ? (

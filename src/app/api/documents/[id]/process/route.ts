@@ -1,4 +1,5 @@
 import { embedMany } from "@/lib/ai/embeddings";
+import { generateAndStoreSuggestions } from "@/lib/ai/suggestions";
 import { requireUser } from "@/lib/auth/require-user";
 import { chunkText, estimateTokens } from "@/lib/chunk";
 import { LIMITS } from "@/lib/config";
@@ -6,7 +7,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { replaceChunks } from "@/lib/repositories/chunks";
 import { getDocument, setStatus } from "@/lib/repositories/documents";
 import { downloadObject } from "@/lib/storage";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 
 import { writeFile, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -123,6 +124,18 @@ export async function POST(
     await replaceChunks(userId, id, rows);
 
     await setStatus(userId, id, "PROCESSED");
+
+    // Suggested questions are a side effect, not part of indexing. They run
+    // after the response so a slow or missing LLM never delays the upload,
+    // and they are best-effort: failure leaves the document PROCESSED.
+    after(async () => {
+      await generateAndStoreSuggestions({
+        userId,
+        documentId: id,
+        title: doc.title,
+        chunks: chunks.map((c) => c.text),
+      });
+    });
 
     return NextResponse.json({
       ok: true,

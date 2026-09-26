@@ -12,7 +12,8 @@
     "cleanup:orphans": "node --env-file=.env.local scripts/cleanup-orphans.mjs",
     "verify:repos": "tsx scripts/verify-repositories.ts",
     "verify:reliability": "tsx scripts/verify-reliability.ts",
-    "eval": "tsx scripts/eval.ts"
+    "eval": "tsx scripts/eval.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1137.0",

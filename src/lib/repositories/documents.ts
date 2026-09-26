@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm'
 import { db } from '@/db'
 import { documents, type Document, type DocumentStatus } from '@/db/schema'
 
@@ -82,8 +82,7 @@ export async function setStatus(
     .where(and(eq(documents.id, documentId), eq(documents.userId, userId)))
 }
 
-export async function countDocuments(userId: string): Promise<number> {
-  const rows = await db
+export async function countDocuments(userId: string): Promise<number> {  const rows = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(documents)
     .where(eq(documents.userId, userId))
@@ -106,4 +105,90 @@ export async function deleteDocument(
     .returning({ id: documents.id })
 
   return rows.length > 0
+}
+
+/** Every referenced R2 key. Used by orphan reconciliation. */
+export async function listAllStoragePaths(): Promise<string[]> {
+  const rows = await db
+    .select({ storagePath: documents.storagePath })
+    .from(documents)
+    .where(isNotNull(documents.storagePath))
+
+  return rows
+    .map((row) => row.storagePath)
+    .filter((path): path is string => typeof path === 'string')
+}
+
+/** Suggested questions live in `documents.metadata.suggestedQuestions`. */
+const SUGGESTED_QUESTIONS_KEY = 'suggestedQuestions'
+
+function questionsFromMetadata(metadata: unknown): string[] {
+  if (!metadata || typeof metadata !== 'object') return []
+  const value = (metadata as Record<string, unknown>)[SUGGESTED_QUESTIONS_KEY]
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
+/**
+ * Merges suggested questions into the document's metadata.
+ *
+ * A jsonb merge (`||`) rather than a read-modify-write, so it cannot clobber
+ * other metadata keys (sizeBytes, originalFilename, …) even if two writers race.
+ */
+export async function setSuggestedQuestions(
+  userId: string,
+  documentId: string,
+  questions: string[],
+): Promise<void> {
+  await db
+    .update(documents)
+    .set({
+      metadata: sql`coalesce(${documents.metadata}, '{}'::jsonb) || jsonb_build_object(${SUGGESTED_QUESTIONS_KEY}::text, ${JSON.stringify(questions)}::jsonb)`,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(documents.id, documentId), eq(documents.userId, userId)))
+}
+
+export async function getDocumentSuggestions(
+  userId: string,
+  documentId: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ metadata: documents.metadata })
+    .from(documents)
+    .where(and(eq(documents.id, documentId), eq(documents.userId, userId)))
+    .limit(1)
+
+  return questionsFromMetadata(rows[0]?.metadata)
+}
+
+export type DocumentSuggestions = {
+  documentId: string
+  title: string
+  questions: string[]
+}
+
+/** Suggested questions for every document that has any. */
+export async function listDocumentSuggestions(
+  userId: string,
+  limit = 100,
+): Promise<DocumentSuggestions[]> {
+  const rows = await db
+    .select({
+      id: documents.id,
+      title: documents.title,
+      metadata: documents.metadata,
+    })
+    .from(documents)
+    .where(eq(documents.userId, userId))
+    .orderBy(desc(documents.createdAt))
+    .limit(limit)
+
+  return rows
+    .map((row) => ({
+      documentId: row.id,
+      title: row.title,
+      questions: questionsFromMetadata(row.metadata),
+    }))
+    .filter((row) => row.questions.length > 0)
 }

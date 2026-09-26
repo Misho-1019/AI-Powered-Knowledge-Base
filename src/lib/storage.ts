@@ -1,7 +1,10 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
@@ -169,6 +172,77 @@ export async function headObject(key: string): Promise<ObjectInfo | null> {
 export async function deleteObject(key: string): Promise<void> {
   await getClient().send(
     new DeleteObjectCommand({ Bucket: getBucket(), Key: key }),
+  )
+}
+
+export type StoredObject = {
+  key: string
+  size: number
+  lastModified: Date | null
+}
+
+/** Every key in the bucket, paginated. Used by orphan reconciliation. */
+export async function listObjectKeys(): Promise<StoredObject[]> {
+  const keys: StoredObject[] = []
+  let token: string | undefined
+
+  do {
+    const page = await getClient().send(
+      new ListObjectsV2Command({
+        Bucket: getBucket(),
+        ContinuationToken: token,
+      }),
+    )
+
+    for (const obj of page.Contents ?? []) {
+      if (obj.Key) {
+        keys.push({
+          key: obj.Key,
+          size: obj.Size ?? 0,
+          lastModified: obj.LastModified ?? null,
+        })
+      }
+    }
+
+    token = page.IsTruncated ? page.NextContinuationToken : undefined
+  } while (token)
+
+  return keys
+}
+
+/** Batch delete (S3 caps a single call at 1000 keys). */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += 1000) {
+    const batch = keys.slice(i, i + 1000)
+    await getClient().send(
+      new DeleteObjectsCommand({
+        Bucket: getBucket(),
+        Delete: { Objects: batch.map((Key) => ({ Key })) },
+      }),
+    )
+  }
+}
+
+/**
+ * Server-side copy inside the bucket, used when a sandbox clones a file
+ * document. The bytes never leave R2, and the destination keeps the
+ * `<newUserId>/…` prefix so the ownership checks keep working.
+ */
+export async function copyObject(
+  sourceKey: string,
+  destKey: string,
+): Promise<void> {
+  const encodedSource = sourceKey
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+
+  await getClient().send(
+    new CopyObjectCommand({
+      Bucket: getBucket(),
+      CopySource: `${getBucket()}/${encodedSource}`,
+      Key: destKey,
+    }),
   )
 }
 

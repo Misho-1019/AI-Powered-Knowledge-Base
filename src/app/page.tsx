@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import TryDemoButton from "@/components/TryDemoButton";
 
 export default function HomePage() {
   return (
@@ -18,13 +19,14 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Link href="/documents/upload">
               <Button>Upload document</Button>
             </Link>
             <Link href="/documents/new">
               <Button variant="secondary">Create note</Button>
             </Link>
+            <TryDemoButton label="Try the demo" variant="secondary" />
           </div>
         </div>
       </Card>

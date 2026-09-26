@@ -1,11 +1,12 @@
 import { embedMany } from "@/lib/ai/embeddings";
+import { generateAndStoreSuggestions } from "@/lib/ai/suggestions";
 import { requireUser } from "@/lib/auth/require-user";
 import { chunkText, estimateTokens } from "@/lib/chunk";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { insertChunks } from "@/lib/repositories/chunks";
 import { createDocument, setStatus } from "@/lib/repositories/documents";
 import { ingestSchema, parseJsonBody } from "@/lib/validation";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 
 /** Embedding a long note can exceed the default serverless budget. */
 export const maxDuration = 300;
@@ -60,6 +61,17 @@ export async function POST(request: Request) {
 
       await insertChunks(rows);
       await setStatus(userId, doc.id, "PROCESSED");
+
+      // Best-effort and non-blocking: see the /process route for why this
+      // lives in `after()` rather than on the request path.
+      after(async () => {
+        await generateAndStoreSuggestions({
+          userId,
+          documentId: doc.id,
+          title,
+          chunks: chunks.map((c) => c.text),
+        });
+      });
 
       return NextResponse.json({
         ok: true,
