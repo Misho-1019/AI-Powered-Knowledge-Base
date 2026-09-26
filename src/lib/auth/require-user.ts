@@ -3,6 +3,7 @@ import { cookies, headers } from 'next/headers'
 import { unstable_rethrow } from 'next/navigation'
 import { db } from '@/db'
 import { auth } from '@/lib/auth'
+import { log } from '../log'
 import { AUTH_UNAVAILABLE, NOT_AUTHENTICATED } from './classify-auth-error'
 
 export type AuthUser = {
@@ -12,8 +13,7 @@ export type AuthUser = {
 }
 
 export type RequireUserResult =
-  | { ok: true; user: AuthUser }
-  | { ok: false; status: 401 | 500; error: string }
+  { ok: true; user: AuthUser } | { ok: false; status: 401 | 500; error: string }
 
 /** Better Auth's session cookie, possibly chunked as `.0`, `.1`, … */
 const SESSION_COOKIE_PREFIX = 'better-auth.session_token'
@@ -23,7 +23,7 @@ async function databaseIsReachable(): Promise<boolean> {
     await db.execute(sql`select 1`)
     return true
   } catch (err) {
-    console.error('[auth] database probe failed:', err)
+    log.error('[auth] database probe failed', { error: err })
     return false
   }
 }
@@ -83,7 +83,7 @@ export async function requireUser(): Promise<RequireUserResult> {
     // Swallowing those breaks framework behaviour and logs false failures.
     unstable_rethrow(err)
 
-    console.error('[auth] session lookup failed:', err)
+    log.error('[auth] session lookup failed', { error: err })
     return { ok: false, status: 500, error: AUTH_UNAVAILABLE }
   }
 }

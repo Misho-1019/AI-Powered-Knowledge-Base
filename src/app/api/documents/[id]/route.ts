@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/require-user";
+import { logger, requestIdFrom } from "@/lib/log";
 import { deleteDocument, getDocument } from "@/lib/repositories/documents";
 import { deleteObject } from "@/lib/storage";
 
@@ -17,9 +18,11 @@ export const dynamic = "force-dynamic";
  * Chunks need no explicit delete: they cascade from the document row.
  */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const log = logger(requestIdFrom(request));
+
   try {
     const auth = await requireUser();
     if (!auth.ok) {
@@ -46,7 +49,7 @@ export async function DELETE(
         await deleteObject(doc.storagePath);
         objectDeleted = true;
       } catch (err) {
-        console.error("[documents/delete] object delete failed:", err);
+        log.error("[documents/delete] object delete failed", { error: err });
         return NextResponse.json(
           {
             error:
@@ -68,7 +71,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true, objectDeleted });
   } catch (err) {
-    console.error("[documents/delete] failed:", err);
+    log.error("[documents/delete] failed", { error: err });
     return NextResponse.json(
       { error: "Could not delete the document" },
       { status: 500 },

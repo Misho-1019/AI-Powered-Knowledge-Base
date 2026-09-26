@@ -4,6 +4,7 @@ import { db } from '@/db'
 import { account, user } from '@/db/auth-schema'
 import { documentChunks, documents } from '@/db/schema'
 import { SANDBOX } from '@/lib/config'
+import { log } from '../log'
 import { DEMO_EMAIL } from './corpus'
 import { copyObject, deleteObjects } from '@/lib/storage'
 
@@ -230,7 +231,7 @@ export async function pruneStaleSandboxes(ttlHours: number): Promise<{
   const paths = await listStoragePathsForUsers(stale)
   if (paths.length > 0) {
     await deleteObjects(paths).catch((err) => {
-      console.error('[housekeeping] sandbox object delete failed:', err)
+      log.error('[housekeeping] sandbox object delete failed', { error: err })
     })
   }
 

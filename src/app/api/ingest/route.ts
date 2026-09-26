@@ -6,12 +6,15 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { insertChunks } from "@/lib/repositories/chunks";
 import { createDocument, setStatus } from "@/lib/repositories/documents";
 import { ingestSchema, parseJsonBody } from "@/lib/validation";
+import { logger, requestIdFrom } from "@/lib/log";
 import { NextResponse, after } from "next/server";
 
 /** Embedding a long note can exceed the default serverless budget. */
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   try {
     const auth = await requireUser();
     if (!auth.ok) {
@@ -70,6 +73,7 @@ export async function POST(request: Request) {
           documentId: doc.id,
           title,
           chunks: chunks.map((c) => c.text),
+          log,
         });
       });
 
@@ -80,12 +84,12 @@ export async function POST(request: Request) {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ingestion failed";
-      console.error("[ingest] failed:", message);
+      log.error("[ingest] failed", { error: message });
       await setStatus(userId, doc.id, "FAILED", message).catch(() => {});
       return NextResponse.json({ error: message }, { status: 500 });
     }
   } catch (error) {
-    console.error("[ingest] unexpected error:", error);
+    log.error("[ingest] unexpected error", { error });
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

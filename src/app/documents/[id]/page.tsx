@@ -5,7 +5,11 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import NoticeCard from "@/components/ui/NoticeCard";
 import { requireUser } from "@/lib/auth/require-user";
-import { countChunksByDocument, listChunksByDocument } from "@/lib/repositories/chunks";
+import { log } from "@/lib/log";
+import {
+  countChunksByDocument,
+  listChunksByDocument,
+} from "@/lib/repositories/chunks";
 import { getDocument } from "@/lib/repositories/documents";
 import { unstable_rethrow } from "next/navigation";
 import Link from "next/link";
@@ -38,12 +42,16 @@ async function loadDocumentDetail(userId: string, documentId: string) {
     return { ok: true as const, doc, chunks, chunkTotal };
   } catch (err) {
     unstable_rethrow(err);
-    console.error("[document detail] load failed:", err);
+    log.error("[document detail] load failed", { error: err });
     return { ok: false as const, kind: "db_error" as const };
   }
 }
 
-export default async function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DocumentDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
   const auth = await requireUser();
@@ -210,7 +218,8 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">
-                Chunks <span className="text-[var(--muted)]">({chunkTotal})</span>
+                Chunks{" "}
+                <span className="text-[var(--muted)]">({chunkTotal})</span>
               </div>
               <div className="text-xs text-[var(--muted)]">
                 These are the searchable pieces used for retrieval.
@@ -225,8 +234,8 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
         <div className="px-6 py-6">
           {chunkTotal === 0 ? (
             <div className="text-sm text-[var(--muted)]">
-              No chunks found. If the document is not processed yet, click Process
-              above.
+              No chunks found. If the document is not processed yet, click
+              Process above.
             </div>
           ) : (
             <ul className="space-y-3">

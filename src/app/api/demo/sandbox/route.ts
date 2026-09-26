@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SANDBOX } from "@/lib/config";
+import { logger, requestIdFrom } from "@/lib/log";
 import {
   cloneTemplateDocuments,
   countRecentSandboxes,
@@ -22,7 +23,9 @@ export const maxDuration = 60;
  * The response carries a single-use password so the client can sign straight
  * in through the normal session flow.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   try {
     const recent = await countRecentSandboxes().catch(() => null);
     if (recent !== null && recent >= SANDBOX.maxPerHour) {
@@ -46,7 +49,7 @@ export async function POST() {
       await cloneTemplateDocuments(templateId, sandbox.userId);
     } catch (err) {
       // Never hand out a half-seeded account.
-      console.error("[demo/sandbox] clone failed:", err);
+      log.error("[demo/sandbox] clone failed", { error: err });
       await deleteUsersByIds([sandbox.userId]).catch(() => {});
       return NextResponse.json(
         { error: "Could not prepare the demo. Please try again." },
@@ -60,7 +63,7 @@ export async function POST() {
       password: sandbox.password,
     });
   } catch (err) {
-    console.error("[demo/sandbox] failed:", err);
+    log.error("[demo/sandbox] failed", { error: err });
     return NextResponse.json(
       { error: "Could not start the demo" },
       { status: 500 },

@@ -1,0 +1,22 @@
+{
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "endOfLine": "auto",
+  "overrides": [
+    {
+      "files": [
+        "src/lib/**/*.ts",
+        "src/db/**/*.ts",
+        "src/proxy.ts",
+        "scripts/**/*.{ts,mjs}",
+        "vitest.config.ts",
+        "drizzle.config.ts"
+      ],
+      "options": { "singleQuote": true, "semi": false }
+    },
+    {
+      "files": ["src/lib/services/ragService.ts"],
+      "options": { "singleQuote": false, "semi": true }
+    }
+  ]
+}

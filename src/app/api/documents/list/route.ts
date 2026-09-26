@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/require-user";
+import { logger, requestIdFrom } from "@/lib/log";
 import { listDocuments } from "@/lib/repositories/documents";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   const auth = await requireUser();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -22,7 +25,7 @@ export async function GET() {
       })),
     });
   } catch (err) {
-    console.error("[documents/list] failed:", err);
+    log.error("[documents/list] failed", { error: err });
     return NextResponse.json(
       { error: "Could not load documents" },
       { status: 500 },

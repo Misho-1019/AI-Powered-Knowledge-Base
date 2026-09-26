@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger, requestIdFrom } from "@/lib/log";
 import { requireUser } from "@/lib/auth/require-user";
 import { createDocument } from "@/lib/repositories/documents";
 import { deleteObject, headObject } from "@/lib/storage";
@@ -21,6 +22,8 @@ function ownsStoragePath(userId: string, storagePath: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   try {
     const auth = await requireUser();
     if (!auth.ok) {
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, documentId: doc.id });
   } catch (err) {
-    console.error("[documents] create failed:", err);
+    log.error("[documents] create failed", { error: err });
     return NextResponse.json(
       { error: "Could not create document" },
       { status: 500 },

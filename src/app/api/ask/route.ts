@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth/require-user";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { logger, requestIdFrom } from "@/lib/log";
 import { runRag, runRagStream } from "@/lib/services/ragService";
 import { askSchema, parseJsonBody } from "@/lib/validation";
 import { NextResponse } from "next/server";
@@ -8,6 +9,8 @@ import { NextResponse } from "next/server";
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   try {
     const auth = await requireUser();
     if (!auth.ok) {
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
     };
 
     if (!stream) {
-      const result = await runRag(params);
+      const result = await runRag(params, log);
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: 500 });
       }
@@ -49,13 +52,13 @@ export async function POST(request: Request) {
         };
 
         try {
-          for await (const event of runRagStream(params)) {
+          for await (const event of runRagStream(params, log)) {
             send(event);
           }
         } catch (err) {
           // runRagStream handles its own failures; this is a last resort so the
           // client is never left waiting on a stream that will not close.
-          console.error("[ask] stream failed unexpectedly:", err);
+          log.error("[ask] stream failed unexpectedly", { error: err });
           send({
             type: "done",
             degraded: true,
@@ -77,7 +80,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    console.error("[ask] unexpected error:", err);
+    log.error("[ask] unexpected error", { error: err });
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

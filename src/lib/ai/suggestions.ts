@@ -1,4 +1,5 @@
 import { RETRIEVAL, SUGGESTIONS } from '@/lib/config'
+import { log as systemLog, type Logger } from '@/lib/log'
 import { setSuggestedQuestions } from '@/lib/repositories/documents'
 import { matchChunks } from '@/lib/repositories/search'
 import { embedText } from './embeddings'
@@ -47,7 +48,9 @@ function parseQuestions(text: string): string[] {
     if (line.length < SUGGESTIONS.minQuestionChars) continue
     if (line.length > SUGGESTIONS.maxQuestionChars) continue
     // The model sometimes narrates its own uncertainty despite instructions.
-    if (/\b(i (?:cannot|can't|don't)|not present|no information)\b/i.test(line)) {
+    if (
+      /\b(i (?:cannot|can't|don't)|not present|no information)\b/i.test(line)
+    ) {
       continue
     }
 
@@ -104,7 +107,9 @@ export async function generateAndStoreSuggestions(params: {
   documentId: string
   title: string
   chunks: string[]
+  log?: Logger
 }): Promise<string[]> {
+  const log = params.log ?? systemLog
   try {
     const excerpts = buildExcerpts(params.chunks)
     if (!excerpts.trim()) return []
@@ -146,7 +151,7 @@ export async function generateAndStoreSuggestions(params: {
 
     return verified
   } catch (err) {
-    console.error('[suggestions] generation failed (non-fatal):', err)
+    log.error('[suggestions] generation failed (non-fatal)', { error: err })
     return []
   }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger, requestIdFrom } from "@/lib/log";
 import { requireUser } from "@/lib/auth/require-user";
 import {
   getDocument,
@@ -46,6 +47,8 @@ function interleave(lists: string[][], cap: number): string[] {
  * `documents.metadata`, so this is a cheap indexed read with no LLM cost.
  */
 export async function GET(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   const auth = await requireUser();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -71,10 +74,7 @@ export async function GET(request: Request) {
         );
       }
 
-      const questions = await getDocumentSuggestions(
-        auth.user.id,
-        documentId,
-      );
+      const questions = await getDocumentSuggestions(auth.user.id, documentId);
       return NextResponse.json({
         ok: true,
         questions: questions.slice(0, MAX_SUGGESTIONS),
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       ),
     });
   } catch (err) {
-    console.error("[suggestions] failed:", err);
+    log.error("[suggestions] failed", { error: err });
     return NextResponse.json(
       { error: "Could not load suggestions" },
       { status: 500 },

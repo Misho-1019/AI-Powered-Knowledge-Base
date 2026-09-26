@@ -1,19 +1,20 @@
-import { NextResponse } from 'next/server'
-import { requireUser } from '@/lib/auth/require-user'
-import { enforceRateLimit } from '@/lib/rate-limit'
+import { NextResponse } from "next/server";
+import { logger, requestIdFrom } from "@/lib/log";
+import { requireUser } from "@/lib/auth/require-user";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import {
   buildObjectKey,
   isStorageConfigured,
   presignUpload,
-} from '@/lib/storage'
+} from "@/lib/storage";
 import {
   isAllowedExtension,
   parseJsonBody,
   presignSchema,
   ALLOWED_UPLOAD_EXTENSIONS,
-} from '@/lib/validation'
+} from "@/lib/validation";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 /**
  * Issues a presigned PUT so the browser can upload straight to R2.
@@ -23,50 +24,52 @@ export const dynamic = 'force-dynamic'
  * the limit without the bytes ever reaching this server.
  */
 export async function POST(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   try {
-    const auth = await requireUser()
+    const auth = await requireUser();
     if (!auth.ok) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status })
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const limited = await enforceRateLimit(auth.user.id, 'presign')
-    if (limited) return limited
+    const limited = await enforceRateLimit(auth.user.id, "presign");
+    if (limited) return limited;
 
-    const parsed = await parseJsonBody(request, presignSchema)
-    if (!parsed.ok) return parsed.response
+    const parsed = await parseJsonBody(request, presignSchema);
+    if (!parsed.ok) return parsed.response;
 
-    const { filename, contentType, size } = parsed.data
+    const { filename, contentType, size } = parsed.data;
 
     // Enforced here, not just in the browser.
     if (!isAllowedExtension(filename)) {
       return NextResponse.json(
         {
-          error: `Unsupported file type. Allowed: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`,
+          error: `Unsupported file type. Allowed: ${ALLOWED_UPLOAD_EXTENSIONS.join(", ")}`,
         },
         { status: 400 },
-      )
+      );
     }
 
     if (!isStorageConfigured()) {
       return NextResponse.json(
-        { error: 'Object storage is not configured' },
+        { error: "Object storage is not configured" },
         { status: 503 },
-      )
+      );
     }
 
-    const key = buildObjectKey(auth.user.id, filename)
+    const key = buildObjectKey(auth.user.id, filename);
     const presigned = await presignUpload({
       key,
       contentType,
       contentLength: size,
-    })
+    });
 
-    return NextResponse.json({ ok: true, ...presigned })
+    return NextResponse.json({ ok: true, ...presigned });
   } catch (err) {
-    console.error('[uploads/presign] failed:', err)
+    log.error("[uploads/presign] failed", { error: err });
     return NextResponse.json(
-      { error: 'Could not prepare the upload' },
+      { error: "Could not prepare the upload" },
       { status: 500 },
-    )
+    );
   }
 }

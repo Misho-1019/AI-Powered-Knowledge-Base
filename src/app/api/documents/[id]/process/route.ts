@@ -7,6 +7,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { replaceChunks } from "@/lib/repositories/chunks";
 import { getDocument, setStatus } from "@/lib/repositories/documents";
 import { downloadObject } from "@/lib/storage";
+import { logger, requestIdFrom } from "@/lib/log";
 import { NextResponse, after } from "next/server";
 
 import { writeFile, unlink } from "node:fs/promises";
@@ -28,9 +29,10 @@ function getExt(path: string) {
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const log = logger(requestIdFrom(request));
   const { id } = await params;
 
   const auth = await requireUser();
@@ -46,7 +48,7 @@ export async function POST(
   // Ownership is enforced in the query: a document belonging to another user
   // is indistinguishable from one that does not exist.
   const doc = await getDocument(userId, id).catch((err) => {
-    console.error("[process] lookup failed:", err);
+    log.error("[process] lookup failed", { error: err });
     return null;
   });
 
@@ -134,6 +136,7 @@ export async function POST(
         documentId: id,
         title: doc.title,
         chunks: chunks.map((c) => c.text),
+        log,
       });
     });
 
@@ -144,12 +147,14 @@ export async function POST(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Processing failed";
-    console.error("[process] failed:", message);
+    log.error("[process] failed", { error: message });
 
     // Record the failure instead of silently reverting to PENDING, which is
     // what made broken ingests invisible.
     await setStatus(userId, id, "FAILED", message).catch((statusErr) => {
-      console.error("[process] could not record FAILED status:", statusErr);
+      log.error("[process] could not record FAILED status", {
+        error: statusErr,
+      });
     });
 
     return NextResponse.json({ error: message }, { status: 500 });

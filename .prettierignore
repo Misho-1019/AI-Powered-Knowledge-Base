@@ -1,0 +1,11 @@
+.next/
+node_modules/
+coverage/
+README.md
+views/
+public/
+drizzle/
+package-lock.json
+*.log
+.env*
+devserver*.log

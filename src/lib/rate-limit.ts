@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { extractRows } from '@/lib/drizzle-utils'
+import { log } from './log'
 
 /**
  * Fixed-window, per-user rate limiting backed by Postgres.
@@ -12,12 +13,7 @@ import { extractRows } from '@/lib/drizzle-utils'
  * limited request is a fair price for a limiter that actually holds.
  */
 
-export type RateLimitBucket =
-  | 'ingest'
-  | 'ask'
-  | 'query'
-  | 'presign'
-  | 'process'
+export type RateLimitBucket = 'ingest' | 'ask' | 'query' | 'presign' | 'process'
 
 export const RATE_LIMITS: Record<
   RateLimitBucket,
@@ -31,8 +27,7 @@ export const RATE_LIMITS: Record<
 }
 
 export type RateLimitOutcome =
-  | { ok: true; remaining: number }
-  | { ok: false; retryAfterSeconds: number }
+  { ok: true; remaining: number } | { ok: false; retryAfterSeconds: number }
 
 function windowStartFor(windowSeconds: number): Date {
   const windowMs = windowSeconds * 1000
@@ -81,7 +76,7 @@ export async function enforceRateLimit(
   } catch (err) {
     // Fail OPEN: a broken limiter must not take the whole app down, but it
     // must be visible in the logs.
-    console.error('[rate-limit] check failed, allowing request:', err)
+    log.error('[rate-limit] check failed, allowing request', { error: err })
     return null
   }
 

@@ -1,6 +1,7 @@
 import { embedText } from "../ai/embeddings";
 import { chatComplete, chatCompleteStream } from "../ai/llm";
 import { LLM, RETRIEVAL } from "../config";
+import { log as systemLog, type Logger } from "../log";
 import { matchChunks, type ChunkMatch } from "../repositories/search";
 
 export type RagMatch = ChunkMatch;
@@ -55,7 +56,7 @@ type Retrieval =
  * Normalising here keeps every model honest without touching prompts.
  */
 function normalizeCitations(text: string): string {
-  return text.replace(/【(\d+)】/g, '[$1]').replace(/［(\d+)］/g, '[$1]')
+  return text.replace(/【(\d+)】/g, "[$1]").replace(/［(\d+)］/g, "[$1]");
 }
 
 /**
@@ -99,7 +100,7 @@ function buildMessages(params: RagParams, matches: RagMatch[]) {
  * good enough to answer from at all. Both the JSON and streaming paths use this
  * so their behaviour cannot drift apart.
  */
-async function retrieve(params: RagParams): Promise<Retrieval> {
+async function retrieve(params: RagParams, log: Logger): Promise<Retrieval> {
   const k = typeof params.k === "number" ? params.k : RETRIEVAL.topK;
   const minSimilarity =
     typeof params.minSimilarity === "number"
@@ -110,7 +111,7 @@ async function retrieve(params: RagParams): Promise<Retrieval> {
   try {
     queryEmbedding = await embedText(params.query);
   } catch (err) {
-    console.error("[rag] embedding failed:", err);
+    log.error("[rag] embedding failed", { error: err });
     return { kind: "error", error: "Could not embed the question" };
   }
 
@@ -125,7 +126,7 @@ async function retrieve(params: RagParams): Promise<Retrieval> {
       query: params.query,
     });
   } catch (err) {
-    console.error("[rag] search failed:", err);
+    log.error("[rag] search failed", { error: err });
     return { kind: "error", error: "Search failed" };
   }
 
@@ -162,8 +163,11 @@ async function retrieve(params: RagParams): Promise<Retrieval> {
 }
 
 /** Non-streaming answer path. */
-export async function runRag(params: RagParams): Promise<RagResult> {
-  const retrieval = await retrieve(params);
+export async function runRag(
+  params: RagParams,
+  log: Logger = systemLog,
+): Promise<RagResult> {
+  const retrieval = await retrieve(params, log);
 
   if (retrieval.kind === "error") {
     return { ok: false, error: retrieval.error };
@@ -203,7 +207,9 @@ export async function runRag(params: RagParams): Promise<RagResult> {
     };
   } catch (err) {
     // Retrieval succeeded. A failed generation must not throw that away.
-    console.error("[rag] generation failed, returning sources only:", err);
+    log.error("[rag] generation failed, returning sources only", {
+      error: err,
+    });
     return {
       ok: true,
       answer: null,
@@ -223,8 +229,9 @@ export async function runRag(params: RagParams): Promise<RagResult> {
  */
 export async function* runRagStream(
   params: RagParams,
+  log: Logger = systemLog,
 ): AsyncGenerator<RagStreamEvent> {
-  const retrieval = await retrieve(params);
+  const retrieval = await retrieve(params, log);
 
   if (retrieval.kind === "error") {
     yield { type: "sources", sources: [] };
@@ -286,7 +293,7 @@ export async function* runRagStream(
 
     yield { type: "done" };
   } catch (err) {
-    console.error("[rag] stream failed:", err);
+    log.error("[rag] stream failed", { error: err });
     yield {
       type: "done",
       degraded: true,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger, requestIdFrom } from "@/lib/log";
 import { lt } from "drizzle-orm";
 import { db } from "@/db";
 import { rateLimits } from "@/db/schema";
@@ -34,6 +35,8 @@ function isAuthorized(request: Request): boolean {
  *   3. prune stale rate-limit windows
  */
 export async function GET(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -51,7 +54,7 @@ export async function GET(request: Request) {
     summary.sandboxUsers = pruned.users;
     summary.sandboxObjects = pruned.objects;
   } catch (err) {
-    console.error("[housekeeping] sandbox prune failed:", err);
+    log.error("[housekeeping] sandbox prune failed", { error: err });
     return NextResponse.json(
       { error: "Sandbox prune failed", summary },
       { status: 500 },
@@ -62,8 +65,7 @@ export async function GET(request: Request) {
     if (isStorageConfigured()) {
       const objects = await listObjectKeys();
       const known = new Set(await listAllStoragePaths());
-      const cutoff =
-        Date.now() - HOUSEKEEPING.orphanMinAgeMinutes * 60 * 1000;
+      const cutoff = Date.now() - HOUSEKEEPING.orphanMinAgeMinutes * 60 * 1000;
 
       const orphans = objects.filter(
         (obj) =>
@@ -80,7 +82,7 @@ export async function GET(request: Request) {
       summary.orphanBytes = orphans.reduce((sum, obj) => sum + obj.size, 0);
     }
   } catch (err) {
-    console.error("[housekeeping] orphan scan failed:", err);
+    log.error("[housekeeping] orphan scan failed", { error: err });
     return NextResponse.json(
       { error: "Orphan scan failed", summary },
       { status: 500 },
@@ -97,7 +99,7 @@ export async function GET(request: Request) {
       .returning({ bucket: rateLimits.bucket });
     summary.rateLimitsPruned = removed.length;
   } catch (err) {
-    console.error("[housekeeping] rate-limit prune failed:", err);
+    log.error("[housekeeping] rate-limit prune failed", { error: err });
     return NextResponse.json(
       { error: "Rate-limit prune failed", summary },
       { status: 500 },

@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth/require-user";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { matchChunks } from "@/lib/repositories/search";
 import { parseJsonBody, querySchema } from "@/lib/validation";
+import { logger, requestIdFrom } from "@/lib/log";
 import { NextResponse } from "next/server";
 
 /**
@@ -10,6 +11,8 @@ import { NextResponse } from "next/server";
  * `/api/ask` builds on the same repository for the full answer path.
  */
 export async function POST(request: Request) {
+  const log = logger(requestIdFrom(request));
+
   try {
     const auth = await requireUser();
     if (!auth.ok) {
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, matches });
   } catch (err) {
-    console.error("[query] failed:", err);
+    log.error("[query] failed", { error: err });
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
   }
 }
