@@ -1,6 +1,19 @@
 import { EMBEDDING } from '@/lib/config'
 import { EMBEDDING_DIMENSIONS } from '@/db/schema'
 
+/**
+ * Imported for its side effect: registering the native ONNX runtime as a real
+ * dependency of this module.
+ *
+ * transformers.js loads `onnxruntime-node` via an internal, dynamic require,
+ * which bundlers and serverless packagers cannot see — so the package (and its
+ * native binding) is dropped from the deployed function, and embeddings fail at
+ * runtime with "Cannot find module 'onnxruntime-node'". A direct import makes
+ * it a visible external dependency, so it is bundled with the function.
+ * `serverExternalPackages` keeps it unbundled (native code cannot be bundled).
+ */
+import 'onnxruntime-node'
+
 export class EmbeddingUnavailableError extends Error {
   constructor(message: string) {
     super(message)
