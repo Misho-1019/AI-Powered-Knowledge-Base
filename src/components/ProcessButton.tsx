@@ -23,7 +23,7 @@ export default function ProcessButton({
     setIsError(false);
 
     try {
-      const res = await fetch(`/api/documents/${documentId}/process`, {
+      const res = await fetch(`/api/documents/${documentId}`, {
         method: "POST",
         credentials: "include",
       });
@@ -51,12 +51,18 @@ export default function ProcessButton({
 
   return (
     <div className="space-y-2">
-      <Button onClick={run} isLoading={loading} disabled={loading || status === "PROCESSING"}>
+      <Button
+        onClick={run}
+        isLoading={loading}
+        disabled={loading || status === "PROCESSING"}
+      >
         {label}
       </Button>
 
       {msg ? (
-        <p className={`text-sm ${isError ? "text-rose-700" : "text-[var(--muted)]"}`}>
+        <p
+          className={`text-sm ${isError ? "text-rose-700" : "text-[var(--muted)]"}`}
+        >
           {msg}
         </p>
       ) : null}

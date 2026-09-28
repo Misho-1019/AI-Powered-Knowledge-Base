@@ -117,10 +117,10 @@ export default function UploadDocumentPage() {
       setStage("processing");
       setMessage("Extracting text and generating embeddings…");
 
-      const processRes = await fetch(
-        `/api/documents/${docData.documentId}/process`,
-        { method: "POST", credentials: "include" },
-      );
+      const processRes = await fetch(`/api/documents/${docData.documentId}`, {
+        method: "POST",
+        credentials: "include",
+      });
       const processData = await processRes.json().catch(() => ({}));
 
       setUploading(false);
@@ -155,7 +155,8 @@ export default function UploadDocumentPage() {
         <h1 className="text-lg font-semibold">Upload document</h1>
         <p className="text-sm text-[var(--muted)]">
           Upload a file and we handle the rest: it is stored, text is extracted,
-          chunked, and embedded automatically so you can ask about it straight away.
+          chunked, and embedded automatically so you can ask about it straight
+          away.
         </p>
       </div>
 
@@ -183,12 +184,17 @@ export default function UploadDocumentPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-                      <span className="text-lg" aria-hidden="true">⬆️</span>
+                      <span className="text-lg" aria-hidden="true">
+                        ⬆️
+                      </span>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold">Drag & drop your file</div>
+                      <div className="text-sm font-semibold">
+                        Drag & drop your file
+                      </div>
                       <div className="text-sm text-[var(--muted)]">
-                        Or click to choose a file. We’ll create a document record automatically.
+                        Or click to choose a file. We’ll create a document
+                        record automatically.
                       </div>
                     </div>
                   </div>
@@ -196,10 +202,16 @@ export default function UploadDocumentPage() {
 
                 <div className="sm:text-right">
                   <div className="text-xs text-[var(--muted)]">
-                    Types: <span className="font-medium text-[var(--text)]">.pdf, .md, .txt</span>
+                    Types:{" "}
+                    <span className="font-medium text-[var(--text)]">
+                      .pdf, .md, .txt
+                    </span>
                   </div>
                   <div className="text-xs text-[var(--muted)]">
-                    Size: <span className="font-medium text-[var(--text)]">max 5MB</span>
+                    Size:{" "}
+                    <span className="font-medium text-[var(--text)]">
+                      max 5MB
+                    </span>
                   </div>
                 </div>
               </div>
@@ -219,7 +231,9 @@ export default function UploadDocumentPage() {
                     const MAX_BYTES = 5 * 1024 * 1024;
 
                     if (f.size > MAX_BYTES) {
-                      setMessage(`File too large. Max size is 5MB for this demo.`);
+                      setMessage(
+                        `File too large. Max size is 5MB for this demo.`,
+                      );
                       setFile(null);
                       return;
                     }
@@ -313,7 +327,11 @@ export default function UploadDocumentPage() {
                 }`}
               >
                 <div className="font-medium">
-                  {stage === "error" ? "Failed" : stage === "done" ? "Ready" : "Status"}
+                  {stage === "error"
+                    ? "Failed"
+                    : stage === "done"
+                      ? "Ready"
+                      : "Status"}
                 </div>
                 <div className="mt-1 text-[var(--muted)]">{message}</div>
               </div>
@@ -344,13 +362,16 @@ export default function UploadDocumentPage() {
           <div>
             <div className="text-sm font-semibold">What happens next?</div>
             <div className="text-sm text-[var(--muted)]">
-              Uploading stores the file and creates a document record. Processing
-              extracts text, chunks it, and generates embeddings for search.
+              Uploading stores the file and creates a document record.
+              Processing extracts text, chunks it, and generates embeddings for
+              search.
             </div>
           </div>
 
           <div className="rounded-xl border border-[var(--border)] bg-white p-4">
-            <div className="text-sm font-semibold">What happens automatically</div>
+            <div className="text-sm font-semibold">
+              What happens automatically
+            </div>
             <ol className="mt-2 list-decimal pl-5 text-sm text-[var(--muted)] space-y-1">
               <li>The file uploads straight to storage</li>
               <li>Text is extracted and split into chunks</li>

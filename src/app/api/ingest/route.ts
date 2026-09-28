@@ -65,8 +65,8 @@ export async function POST(request: Request) {
       await insertChunks(rows);
       await setStatus(userId, doc.id, "PROCESSED");
 
-      // Best-effort and non-blocking: see the /process route for why this
-      // lives in `after()` rather than on the request path.
+      // Best-effort and non-blocking: see POST /api/documents/[id] for why
+      // this lives in `after()` rather than on the request path.
       after(async () => {
         await generateAndStoreSuggestions({
           userId,

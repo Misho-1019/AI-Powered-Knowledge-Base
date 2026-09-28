@@ -31,7 +31,7 @@ export default function ProcessDocButton({
     setIsError(false);
 
     try {
-      const res = await fetch(`/api/documents/${documentId}/process`, {
+      const res = await fetch(`/api/documents/${documentId}`, {
         method: "POST",
         credentials: "include",
       });
@@ -76,7 +76,9 @@ export default function ProcessDocButton({
       </Button>
 
       {msg ? (
-        <span className={`text-xs ${isError ? "text-rose-700" : "text-[var(--muted)]"}`}>
+        <span
+          className={`text-xs ${isError ? "text-rose-700" : "text-[var(--muted)]"}`}
+        >
           {msg}
         </span>
       ) : null}
