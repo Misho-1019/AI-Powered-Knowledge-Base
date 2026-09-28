@@ -19,11 +19,19 @@ const nextConfig: NextConfig = {
    * (`*` matches the literal `[id]` segment, avoiding bracket-escaping.)
    */
   outputFileTracingIncludes: {
-    "/api/ask": ["./node_modules/onnxruntime-node/bin/napi-v6/linux/x64/*"],
+    "/api/ask": [
+      "./node_modules/onnxruntime-node/package.json",
+      "./node_modules/onnxruntime-node/dist/**/*",
+      "./node_modules/onnxruntime-node/bin/napi-v6/linux/x64/*",
+    ],
     "/api/documents": [
+      "./node_modules/onnxruntime-node/package.json",
+      "./node_modules/onnxruntime-node/dist/**/*",
       "./node_modules/onnxruntime-node/bin/napi-v6/linux/x64/*",
     ],
     "/api/documents/*": [
+      "./node_modules/onnxruntime-node/package.json",
+      "./node_modules/onnxruntime-node/dist/**/*",
       "./node_modules/onnxruntime-node/bin/napi-v6/linux/x64/*",
     ],
   },
