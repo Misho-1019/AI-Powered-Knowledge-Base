@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -6,40 +6,40 @@ import Input from "@/components/ui/Input";
 import NoticeCard from "@/components/ui/NoticeCard";
 import Textarea from "@/components/ui/Textarea";
 import Link from "next/link";
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function NewDocumentPage() {
   const router = useRouter();
 
-  const [title, setTitle] = useState('')
-  const [text, setText] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async () => {
-    setError('')
+    setError("");
     setLoading(true);
 
-    const res = await fetch('/api/ingest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ title, text })
-    })
+    const res = await fetch("/api/documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ title, text }),
+    });
 
     const data = await res.json();
 
-    setLoading(false)
+    setLoading(false);
 
     if (!res.ok) {
-      setError(data.error || 'Something went wrong!')
+      setError(data.error || "Something went wrong!");
       return;
     }
 
-    router.push('/documents');
+    router.push("/documents");
     router.refresh();
-  }
+  };
 
   const canSubmit = !loading && !!title.trim() && !!text.trim();
 
@@ -72,7 +72,8 @@ export default function NewDocumentPage() {
               <div>
                 <div className="text-sm font-semibold">Write</div>
                 <div className="text-xs text-[var(--muted)]">
-                  Give it a title and paste your text. We’ll chunk and embed it on ingest.
+                  Give it a title and paste your text. We’ll chunk and embed it
+                  on ingest.
                 </div>
               </div>
 
@@ -101,7 +102,9 @@ export default function NewDocumentPage() {
               <div className="flex items-center justify-between gap-3">
                 <label className="text-sm font-medium">Note</label>
                 <div className="text-xs text-[var(--muted)]">
-                  {text.trim() ? `${text.trim().length.toLocaleString()} chars` : " "}
+                  {text.trim()
+                    ? `${text.trim().length.toLocaleString()} chars`
+                    : " "}
                 </div>
               </div>
 
@@ -109,7 +112,9 @@ export default function NewDocumentPage() {
               <div className="rounded-xl border border-[var(--border)] bg-white">
                 <div className="border-b border-[var(--border)] px-4 py-2 text-xs text-[var(--muted)] flex items-center justify-between">
                   <span>Write or paste content</span>
-                  <span className="hidden sm:inline">Tip: headings + bullets work best</span>
+                  <span className="hidden sm:inline">
+                    Tip: headings + bullets work best
+                  </span>
                 </div>
                 <div className="p-3">
                   <Textarea
@@ -135,7 +140,9 @@ export default function NewDocumentPage() {
                 </Button>
 
                 <span className="text-xs text-[var(--muted)]">
-                  {canSubmit ? "Ready to ingest." : "Add a title and some text to continue."}
+                  {canSubmit
+                    ? "Ready to ingest."
+                    : "Add a title and some text to continue."}
                 </span>
               </div>
 
@@ -149,7 +156,11 @@ export default function NewDocumentPage() {
             </div>
 
             {error ? (
-              <NoticeCard title="Could not save note" description={error} variant="error" />
+              <NoticeCard
+                title="Could not save note"
+                description={error}
+                variant="error"
+              />
             ) : null}
           </div>
         </Card>
@@ -175,15 +186,28 @@ export default function NewDocumentPage() {
           <div className="rounded-xl border border-[var(--border)] bg-slate-50 p-4">
             <div className="text-sm font-semibold">Suggested structure</div>
             <ul className="mt-2 space-y-1 text-sm text-[var(--muted)]">
-              <li><span className="font-medium text-[var(--text)]">1)</span> Summary</li>
-              <li><span className="font-medium text-[var(--text)]">2)</span> Key concepts</li>
-              <li><span className="font-medium text-[var(--text)]">3)</span> Examples</li>
-              <li><span className="font-medium text-[var(--text)]">4)</span> Questions to ask</li>
+              <li>
+                <span className="font-medium text-[var(--text)]">1)</span>{" "}
+                Summary
+              </li>
+              <li>
+                <span className="font-medium text-[var(--text)]">2)</span> Key
+                concepts
+              </li>
+              <li>
+                <span className="font-medium text-[var(--text)]">3)</span>{" "}
+                Examples
+              </li>
+              <li>
+                <span className="font-medium text-[var(--text)]">4)</span>{" "}
+                Questions to ask
+              </li>
             </ul>
           </div>
 
           <div className="text-xs text-[var(--muted)]">
-            After ingesting, go to <span className="font-medium">Ask</span> to test questions.
+            After ingesting, go to <span className="font-medium">Ask</span> to
+            test questions.
           </div>
         </Card>
       </div>
